@@ -30,16 +30,23 @@
     <div class="container hidden" id="call-section">
         <h1>Video Llamada</h1>
         <p>Bienvenido, <span id="current-user"></span></p>
+        <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
         <div class="video-container">
-            <video id="localVideo" autoplay muted></video>
-            <video id="remoteVideo" autoplay></video>
+            <div class="video-wrapper">
+                <video id="localVideo" autoplay muted></video>
+                <span class="video-off-text hidden" id="localVideoOff">Cámara Apagada</span>
+            </div>
+            <div class="video-wrapper">
+                <video id="remoteVideo" autoplay></video>
+                <span class="video-off-text hidden" id="remoteVideoOff">Cámara Apagada</span>
+            </div>
         </div>
         <div class="controls">
             <input type="text" id="call-username" placeholder="Usuario a llamar">
             <button id="call-btn" onclick="startCall()">Llamar</button>
-            <button id="hang-btn" onclick="hangUp()" disabled>Colgar</button>
+            <button id="hang-btn" class="hidden" onclick="hangUp()">Colgar</button>
+            <button id="camera-btn" onclick="toggleCamera()">Apagar Cámara</button>
             <button onclick="logout()">Cerrar Sesión</button>
-            <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
         </div>
         <div class="settings hidden" id="settings-panel">
             <h3>Ajustes</h3>
