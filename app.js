@@ -9,6 +9,8 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const localVideoOff = document.getElementById('localVideoOff');
 const remoteVideoOff = document.getElementById('remoteVideoOff');
+const localUsername = document.getElementById('local-username');
+const remoteUsername = document.getElementById('remote-username');
 const callRequestModal = document.getElementById('call-request-modal');
 const callerName = document.getElementById('caller-name');
 const ringtone = document.getElementById('ringtone');
@@ -16,6 +18,7 @@ const settingsPanel = document.getElementById('settings-panel');
 const callBtn = document.getElementById('call-btn');
 const hangBtn = document.getElementById('hang-btn');
 const cameraBtn = document.getElementById('camera-btn');
+const callUsernameInput = document.getElementById('call-username');
 
 document.addEventListener('DOMContentLoaded', () => {
     callRequestModal.classList.add('hidden');
@@ -69,6 +72,7 @@ async function login() {
     if (res.ok) {
         loginStatus.classList.add('success');
         document.getElementById('current-user').textContent = username;
+        localUsername.textContent = username; // Mostrar nombre local
         isLoggedIn = true;
         socket.emit('join', username);
         setTimeout(() => showCallSection(), 1000);
@@ -76,7 +80,7 @@ async function login() {
 }
 
 async function startCall() {
-    const callUsername = document.getElementById('call-username').value.trim();
+    const callUsername = callUsernameInput.value.trim();
     const callStatus = document.getElementById('call-status');
 
     if (!callUsername) {
@@ -94,6 +98,7 @@ async function startCall() {
     peerConnection.ontrack = (event) => {
         remoteVideo.srcObject = event.streams[0];
         remoteVideoOff.classList.add('hidden');
+        remoteUsername.textContent = callUsername; // Mostrar nombre remoto
     };
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
@@ -106,11 +111,12 @@ async function startCall() {
     callBtn.classList.add('hidden');
     hangBtn.classList.remove('hidden');
     cameraBtn.classList.remove('hidden');
+    callUsernameInput.classList.add('hidden');
 }
 
 function hangUp() {
     if (peerConnection) {
-        const remoteUser = currentCaller || document.getElementById('call-username').value;
+        const remoteUser = currentCaller || callUsernameInput.value;
         socket.emit('hangup', { to: remoteUser });
         peerConnection.close();
     }
@@ -118,24 +124,18 @@ function hangUp() {
     localVideo.srcObject = remoteVideo.srcObject = null;
     localVideoOff.classList.add('hidden');
     remoteVideoOff.classList.add('hidden');
+    remoteUsername.textContent = '';
     document.getElementById('call-status').textContent = 'Estado: Listo';
     callBtn.classList.remove('hidden');
     hangBtn.classList.add('hidden');
     cameraBtn.classList.add('hidden');
+    callUsernameInput.classList.remove('hidden');
     peerConnection = null;
     currentCaller = null;
     currentOffer = null;
     ringtone.pause();
     cameraOn = true;
     cameraBtn.textContent = 'Apagar Cámara';
-}
-
-function logout() {
-    hangUp();
-    socket.disconnect();
-    isLoggedIn = false;
-    showLogin();
-    socket.connect();
 }
 
 socket.on('offer', ({ offer, from }) => {
@@ -161,6 +161,7 @@ async function acceptCall() {
     peerConnection.ontrack = (event) => {
         remoteVideo.srcObject = event.streams[0];
         remoteVideoOff.classList.add('hidden');
+        remoteUsername.textContent = currentCaller; // Mostrar nombre remoto
     };
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
@@ -175,6 +176,7 @@ async function acceptCall() {
     callBtn.classList.add('hidden');
     hangBtn.classList.remove('hidden');
     cameraBtn.classList.remove('hidden');
+    callUsernameInput.classList.add('hidden');
 }
 
 function rejectCall() {
@@ -188,7 +190,7 @@ function rejectCall() {
 
 socket.on('answer', async ({ answer }) => {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    document.getElementById('call-status').textContent = `Estado: En llamada con ${document.getElementById('call-username').value}`;
+    document.getElementById('call-status').textContent = `Estado: En llamada con ${callUsernameInput.value}`;
 });
 
 socket.on('ice-candidate', async ({ candidate }) => {
@@ -203,11 +205,6 @@ socket.on('reject', () => {
 socket.on('hangup', () => {
     hangUp();
     document.getElementById('call-status').textContent = 'Estado: Llamada finalizada';
-});
-
-socket.on('userList', (users) => {
-    const userList = document.getElementById('user-list');
-    userList.innerHTML = users.map(user => `<li>${user}</li>`).join('');
 });
 
 function showRegister() {
@@ -238,6 +235,7 @@ function showCallSection() {
     callBtn.classList.remove('hidden');
     hangBtn.classList.add('hidden');
     cameraBtn.classList.add('hidden');
+    callUsernameInput.classList.remove('hidden');
 }
 
 function clearInputs(section) {
