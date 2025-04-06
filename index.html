@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Moderno</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container" id="auth-section">
+        <h1>WebRTC Chat</h1>
+        <div class="form" id="register-form">
+            <h2>Registro</h2>
+            <input type="text" id="reg-username" placeholder="Usuario" required>
+            <input type="password" id="reg-password" placeholder="Contraseña" required>
+            <button onclick="register()">Registrarse</button>
+            <p onclick="showLogin()">¿Ya tienes cuenta? Inicia sesión</p>
+            <p id="reg-status"></p>
+        </div>
+        <div class="form hidden" id="login-form">
+            <h2>Iniciar Sesión</h2>
+            <input type="text" id="login-username" placeholder="Usuario" required>
+            <input type="password" id="login-password" placeholder="Contraseña" required>
+            <button onclick="login()">Iniciar Sesión</button>
+            <p onclick="showRegister()">¿No tienes cuenta? Regístrate</p>
+            <p id="login-status"></p>
+        </div>
+    </div>
+
+    <div class="container hidden" id="call-section">
+        <h1>Video Llamada</h1>
+        <p>Bienvenido, <span id="current-user"></span></p>
+        <div class="video-container">
+            <video id="localVideo" autoplay muted></video>
+            <video id="remoteVideo" autoplay></video>
+        </div>
+        <div class="controls">
+            <input type="text" id="call-username" placeholder="Usuario a llamar">
+            <button id="call-btn" onclick="startCall()">Llamar</button>
+            <button id="hang-btn" onclick="hangUp()" disabled>Colgar</button>
+            <button onclick="logout()">Cerrar Sesión</button>
+        </div>
+        <div class="user-list">
+            <h3>Usuarios Conectados</h3>
+            <ul id="user-list"></ul>
+        </div>
+        <p id="call-status">Estado: Listo</p>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
