@@ -1,6 +1,6 @@
 const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
-let localStream, peerConnection, currentCaller, currentOffer;
+let localStream, peerConnection, currentCaller, currentOffer, isLoggedIn = false;
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 const authSection = document.getElementById('auth-section');
@@ -10,9 +10,11 @@ const remoteVideo = document.getElementById('remoteVideo');
 const callRequestModal = document.getElementById('call-request-modal');
 const callerName = document.getElementById('caller-name');
 
-// Inicializar estado
+// Inicializar estado al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
-    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto al cargar
+    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto al inicio
+    authSection.classList.remove('hidden'); // Mostrar sección de autenticación
+    callSection.classList.add('hidden'); // Ocultar sección de llamada
 });
 
 async function register() {
@@ -60,6 +62,7 @@ async function login() {
     if (res.ok) {
         loginStatus.classList.add('success');
         document.getElementById('current-user').textContent = username;
+        isLoggedIn = true; // Marcar como logueado
         socket.emit('join', username);
         setTimeout(() => showCallSection(), 1000);
     }
@@ -108,13 +111,14 @@ function hangUp() {
 
 function logout() {
     hangUp();
-    socket.disconnect();
+    socket.disconnect(); // Desconectar el socket
+    isLoggedIn = false; // Marcar como no logueado
     showLogin();
     socket.connect(); // Reconectar para futuros logins
 }
 
 socket.on('offer', ({ offer, from }) => {
-    if (!peerConnection) { // Solo mostrar modal si no estamos en una llamada
+    if (isLoggedIn && !peerConnection && callSection.classList.contains('hidden') === false) { // Solo si está logueado y en la sección de llamada
         currentCaller = from;
         currentOffer = offer;
         callerName.textContent = `${from} está llamándote.`;
@@ -177,7 +181,7 @@ function showRegister() {
     authSection.querySelector('#register-form').classList.remove('hidden');
     authSection.querySelector('#login-form').classList.add('hidden');
     callSection.classList.add('hidden');
-    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto
+    callRequestModal.classList.add('hidden');
     clearInputs('reg');
     document.getElementById('reg-status').textContent = '';
     document.getElementById('reg-status').classList.remove('success');
@@ -187,7 +191,7 @@ function showLogin() {
     authSection.querySelector('#register-form').classList.add('hidden');
     authSection.querySelector('#login-form').classList.remove('hidden');
     callSection.classList.add('hidden');
-    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto
+    callRequestModal.classList.add('hidden');
     clearInputs('login');
     document.getElementById('login-status').textContent = '';
     document.getElementById('login-status').classList.remove('success');
@@ -196,7 +200,7 @@ function showLogin() {
 function showCallSection() {
     authSection.classList.add('hidden');
     callSection.classList.remove('hidden');
-    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto al inicio
+    callRequestModal.classList.add('hidden');
     document.getElementById('call-status').textContent = 'Estado: Listo';
 }
 
