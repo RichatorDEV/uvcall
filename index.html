@@ -14,16 +14,16 @@
             <input type="text" id="reg-username" placeholder="Usuario" required>
             <input type="password" id="reg-password" placeholder="Contraseña" required>
             <button onclick="register()">Registrarse</button>
-            <p onclick="showLogin()">¿Ya tienes cuenta? Inicia sesión</p>
-            <p id="reg-status"></p>
+            <p class="switch" onclick="showLogin()">¿Ya tienes cuenta? Inicia sesión</p>
+            <p id="reg-status" class="status"></p>
         </div>
         <div class="form hidden" id="login-form">
             <h2>Iniciar Sesión</h2>
             <input type="text" id="login-username" placeholder="Usuario" required>
             <input type="password" id="login-password" placeholder="Contraseña" required>
             <button onclick="login()">Iniciar Sesión</button>
-            <p onclick="showRegister()">¿No tienes cuenta? Regístrate</p>
-            <p id="login-status"></p>
+            <p class="switch" onclick="showRegister()">¿No tienes cuenta? Regístrate</p>
+            <p id="login-status" class="status"></p>
         </div>
     </div>
 
@@ -44,7 +44,16 @@
             <h3>Usuarios Conectados</h3>
             <ul id="user-list"></ul>
         </div>
-        <p id="call-status">Estado: Listo</p>
+        <p id="call-status" class="status">Estado: Listo</p>
+    </div>
+
+    <div class="modal hidden" id="call-request-modal">
+        <div class="modal-content">
+            <h2>Llamada Entrante</h2>
+            <p id="caller-name"></p>
+            <button onclick="acceptCall()">Aceptar</button>
+            <button onclick="rejectCall()">Rechazar</button>
+        </div>
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
