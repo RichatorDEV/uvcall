@@ -1,47 +1,73 @@
 const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
-let localStream, peerConnection;
+let localStream, peerConnection, currentCaller;
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 const authSection = document.getElementById('auth-section');
 const callSection = document.getElementById('call-section');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
+const callRequestModal = document.getElementById('call-request-modal');
+const callerName = document.getElementById('caller-name');
 
 async function register() {
-    const username = document.getElementById('reg-username').value;
-    const password = document.getElementById('reg-password').value;
+    const username = document.getElementById('reg-username').value.trim();
+    const password = document.getElementById('reg-password').value.trim();
+    const regStatus = document.getElementById('reg-status');
+
+    if (!username || !password) {
+        regStatus.textContent = 'Por favor, completa todos los campos.';
+        return;
+    }
+
     const res = await fetch(`${SERVER_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
     });
     const data = await res.json();
-    document.getElementById('reg-status').textContent = data.message || data.error;
-    if (res.ok) clearInputs('reg');
+    regStatus.textContent = data.message || data.error;
+    if (res.ok) {
+        regStatus.classList.add('success');
+        setTimeout(() => showLogin(), 1000);
+    }
 }
 
 async function login() {
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value.trim();
+    const loginStatus = document.getElementById('login-status');
+
+    if (!username || !password) {
+        loginStatus.textContent = 'Por favor, completa todos los campos.';
+        return;
+    }
+
     const res = await fetch(`${SERVER_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
     });
     const data = await res.json();
-    document.getElementById('login-status').textContent = data.message || data.error;
+    loginStatus.textContent = data.message || data.error;
     if (res.ok) {
+        loginStatus.classList.add('success');
         document.getElementById('current-user').textContent = username;
         socket.emit('join', username);
-        showCallSection();
+        setTimeout(() => showCallSection(), 1000);
     }
 }
 
 async function startCall() {
-    const callUsername = document.getElementById('call-username').value;
-    document.getElementById('call-status').textContent = `Estado: Llamando a ${callUsername}...`;
+    const callUsername = document.getElementById('call-username').value.trim();
+    const callStatus = document.getElementById('call-status');
 
+    if (!callUsername) {
+        callStatus.textContent = 'Estado: Ingresa un usuario a llamar.';
+        return;
+    }
+
+    callStatus.textContent = `Estado: Solicitando llamada a ${callUsername}...`;
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     localVideo.srcObject = localStream;
 
@@ -68,6 +94,7 @@ function hangUp() {
     document.getElementById('call-status').textContent = 'Estado: Listo';
     document.getElementById('call-btn').disabled = false;
     document.getElementById('hang-btn').disabled = true;
+    peerConnection = null;
 }
 
 function logout() {
@@ -76,31 +103,53 @@ function logout() {
 }
 
 socket.on('offer', async ({ offer, from }) => {
-    if (!peerConnection) {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
-        peerConnection = new RTCPeerConnection(config);
-        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-        peerConnection.ontrack = (event) => remoteVideo.srcObject = event.streams[0];
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: from });
-        };
-    }
+    currentCaller = from;
+    callerName.textContent = `${from} está llamándote.`;
+    callRequestModal.classList.remove('hidden');
+});
+
+async function acceptCall() {
+    callRequestModal.classList.add('hidden');
+    const callStatus = document.getElementById('call-status');
+
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localVideo.srcObject = localStream;
+    peerConnection = new RTCPeerConnection(config);
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+    peerConnection.ontrack = (event) => remoteVideo.srcObject = event.streams[0];
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
+    };
+
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
-    socket.emit('answer', { answer, to: from });
-    document.getElementById('call-status').textContent = `Estado: En llamada con ${from}`;
+    socket.emit('answer', { answer, to: currentCaller });
+
+    callStatus.textContent = `Estado: En llamada con ${currentCaller}`;
     document.getElementById('call-btn').disabled = true;
     document.getElementById('hang-btn').disabled = false;
-});
+}
+
+function rejectCall() {
+    callRequestModal.classList.add('hidden');
+    socket.emit('reject', { to: currentCaller });
+    document.getElementById('call-status').textContent = 'Estado: Llamada rechazada';
+}
 
 socket.on('answer', async ({ answer }) => {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    document.getElementById('call-status').textContent = `Estado: En llamada con ${document.getElementById('call-username').value}`;
 });
 
 socket.on('ice-candidate', async ({ candidate }) => {
-    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    if (peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+});
+
+socket.on('reject', () => {
+    hangUp();
+    document.getElementById('call-status').textContent = 'Estado: La llamada fue rechazada';
 });
 
 socket.on('userList', (users) => {
@@ -113,6 +162,8 @@ function showRegister() {
     authSection.querySelector('#login-form').classList.add('hidden');
     callSection.classList.add('hidden');
     clearInputs('reg');
+    document.getElementById('reg-status').textContent = '';
+    document.getElementById('reg-status').classList.remove('success');
 }
 
 function showLogin() {
@@ -120,11 +171,14 @@ function showLogin() {
     authSection.querySelector('#login-form').classList.remove('hidden');
     callSection.classList.add('hidden');
     clearInputs('login');
+    document.getElementById('login-status').textContent = '';
+    document.getElementById('login-status').classList.remove('success');
 }
 
 function showCallSection() {
     authSection.classList.add('hidden');
     callSection.classList.remove('hidden');
+    document.getElementById('call-status').textContent = 'Estado: Listo';
 }
 
 function clearInputs(section) {
