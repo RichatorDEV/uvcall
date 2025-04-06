@@ -42,7 +42,7 @@ h2, h3 {
 }
 
 .form input, .controls input {
-    width: calc(100% - 24px); /* Ajustar para padding */
+    width: calc(100% - 24px);
     padding: 12px;
     margin: 10px 0;
     border: none;
@@ -60,9 +60,9 @@ h2, h3 {
 }
 
 .form button, .controls button {
-    width: calc(100% - 24px); /* Ajustar para que no sobresalga */
+    width: calc(100% - 24px);
     padding: 12px;
-    margin: 10px auto; /* Centrar y evitar desborde */
+    margin: 10px auto;
     border: none;
     border-radius: 25px;
     background: #007bff;
@@ -71,7 +71,7 @@ h2, h3 {
     cursor: pointer;
     transition: background 0.3s, transform 0.2s;
     display: block;
-    max-width: 200px; /* Limitar ancho máximo */
+    max-width: 200px;
 }
 
 .form button:hover, .controls button:hover {
@@ -83,16 +83,24 @@ h2, h3 {
 #call-btn:hover { background: #218838; }
 #hang-btn { background: #dc3545; }
 #hang-btn:hover { background: #c82333; }
+#camera-btn { background: #ffc107; }
+#camera-btn:hover { background: #e0a800; }
 #settings-btn {
-    background: #6c757d;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #fff;
+    cursor: pointer;
+    padding: 0;
     width: 40px;
     height: 40px;
-    padding: 0;
-    font-size: 1.2em;
     border-radius: 50%;
-    margin: 10px auto;
+    transition: color 0.3s;
 }
-#settings-btn:hover { background: #5a6268; }
+#settings-btn:hover { color: #a8cfff; }
 
 .switch {
     cursor: pointer;
@@ -122,11 +130,29 @@ h2, h3 {
     margin: 20px 0;
 }
 
-video {
+.video-wrapper {
+    position: relative;
     width: 48%;
+}
+
+video {
+    width: 100%;
     border-radius: 10px;
     background: #000;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.video-off-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 1.2em;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 5px;
 }
 
 .user-list {
