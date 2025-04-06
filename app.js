@@ -9,12 +9,14 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callRequestModal = document.getElementById('call-request-modal');
 const callerName = document.getElementById('caller-name');
+const ringtone = document.getElementById('ringtone');
+const settingsPanel = document.getElementById('settings-panel');
 
-// Inicializar estado al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
-    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto al inicio
-    authSection.classList.remove('hidden'); // Mostrar sección de autenticación
-    callSection.classList.add('hidden'); // Ocultar sección de llamada
+    callRequestModal.classList.add('hidden');
+    authSection.classList.remove('hidden');
+    callSection.classList.add('hidden');
+    loadRingtone(); // Cargar tono de llamada al iniciar
 });
 
 async function register() {
@@ -62,7 +64,7 @@ async function login() {
     if (res.ok) {
         loginStatus.classList.add('success');
         document.getElementById('current-user').textContent = username;
-        isLoggedIn = true; // Marcar como logueado
+        isLoggedIn = true;
         socket.emit('join', username);
         setTimeout(() => showCallSection(), 1000);
     }
@@ -107,27 +109,30 @@ function hangUp() {
     peerConnection = null;
     currentCaller = null;
     currentOffer = null;
+    ringtone.pause();
 }
 
 function logout() {
     hangUp();
-    socket.disconnect(); // Desconectar el socket
-    isLoggedIn = false; // Marcar como no logueado
+    socket.disconnect();
+    isLoggedIn = false;
     showLogin();
-    socket.connect(); // Reconectar para futuros logins
+    socket.connect();
 }
 
 socket.on('offer', ({ offer, from }) => {
-    if (isLoggedIn && !peerConnection && callSection.classList.contains('hidden') === false) { // Solo si está logueado y en la sección de llamada
+    if (isLoggedIn && !peerConnection && !callSection.classList.contains('hidden')) {
         currentCaller = from;
         currentOffer = offer;
         callerName.textContent = `${from} está llamándote.`;
         callRequestModal.classList.remove('hidden');
+        ringtone.play(); // Reproducir tono al recibir llamada
     }
 });
 
 async function acceptCall() {
     callRequestModal.classList.add('hidden');
+    ringtone.pause();
     const callStatus = document.getElementById('call-status');
 
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -152,6 +157,7 @@ async function acceptCall() {
 
 function rejectCall() {
     callRequestModal.classList.add('hidden');
+    ringtone.pause();
     socket.emit('reject', { to: currentCaller });
     document.getElementById('call-status').textContent = 'Estado: Llamada rechazada';
     currentCaller = null;
@@ -211,5 +217,45 @@ function clearInputs(section) {
     } else {
         document.getElementById('login-username').value = '';
         document.getElementById('login-password').value = '';
+    }
+}
+
+function toggleSettings() {
+    settingsPanel.classList.toggle('hidden');
+}
+
+async function saveRingtone() {
+    const fileInput = document.getElementById('ringtone-upload');
+    const file = fileInput.files[0];
+    if (!file) {
+        alert('Por favor, selecciona un archivo de audio.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('ringtone', file);
+    formData.append('username', document.getElementById('current-user').textContent);
+
+    const res = await fetch(`${SERVER_URL}/upload-ringtone`, {
+        method: 'POST',
+        body: formData
+    });
+    const data = await res.json();
+    if (res.ok) {
+        loadRingtone(); // Recargar el tono después de guardarlo
+        alert('Tono de llamada guardado con éxito.');
+    } else {
+        alert('Error al guardar el tono: ' + data.error);
+    }
+}
+
+async function loadRingtone() {
+    const username = document.getElementById('current-user').textContent;
+    if (!username) return;
+
+    const res = await fetch(`${SERVER_URL}/get-ringtone?username=${username}`);
+    if (res.ok) {
+        const blob = await res.blob();
+        ringtone.src = URL.createObjectURL(blob);
     }
 }
