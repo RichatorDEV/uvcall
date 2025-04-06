@@ -1,7 +1,7 @@
 const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
 let localStream, peerConnection, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true;
-const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }; // Más STUN servers
+const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
 
 const authSection = document.getElementById('auth-section');
 const callSection = document.getElementById('call-section');
@@ -151,8 +151,7 @@ function hangUp() {
     peerConnection = null;
     currentCaller = null;
     currentOffer = null;
-    ringtone.pause();
-    ringtone.currentTime = 0; // Reiniciar tono al colgar
+    stopRingtone(); // Usar función para detener tono
     cameraOn = true;
     cameraBtn.textContent = 'Apagar Cámara';
 }
@@ -170,8 +169,7 @@ socket.on('offer', async ({ offer, from }) => {
 
 async function acceptCall() {
     callRequestModal.classList.add('hidden');
-    ringtone.pause();
-    ringtone.currentTime = 0; // Asegurar que el tono se detenga y reinicie
+    stopRingtone(); // Detener tono al aceptar
     const callStatus = document.getElementById('call-status');
 
     try {
@@ -208,8 +206,7 @@ async function acceptCall() {
 
 function rejectCall() {
     callRequestModal.classList.add('hidden');
-    ringtone.pause();
-    ringtone.currentTime = 0;
+    stopRingtone(); // Detener tono al rechazar
     socket.emit('reject', { to: currentCaller });
     document.getElementById('call-status').textContent = 'Estado: Llamada rechazada';
     currentCaller = null;
@@ -335,6 +332,16 @@ async function loadRingtone() {
         }
     } catch (error) {
         console.log('Error al cargar el tono:', error);
+    }
+}
+
+function stopRingtone() {
+    try {
+        ringtone.pause();
+        ringtone.currentTime = 0;
+        console.log('Tono detenido');
+    } catch (error) {
+        console.error('Error al detener el tono:', error);
     }
 }
 
