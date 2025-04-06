@@ -13,6 +13,7 @@ const localUsername = document.getElementById('local-username');
 const remoteUsername = document.getElementById('remote-username');
 const callRequestModal = document.getElementById('call-request-modal');
 const callerName = document.getElementById('caller-name');
+const sobrecito = document.getElementById('call-username');
 const ringtone = document.getElementById('ringtone');
 const settingsPanel = document.getElementById('settings-panel');
 const callBtn = document.getElementById('call-btn');
@@ -24,7 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
     callRequestModal.classList.add('hidden');
     const savedUsername = localStorage.getItem('username');
     if (savedUsername) {
-        // Si hay un usuario guardado, iniciar sesión automáticamente
         isLoggedIn = true;
         document.getElementById('current-user').textContent = savedUsername;
         localUsername.textContent = savedUsername;
@@ -84,11 +84,11 @@ async function login() {
         document.getElementById('current-user').textContent = username;
         localUsername.textContent = username;
         isLoggedIn = true;
-        localStorage.setItem('username', username); // Guardar el usuario en localStorage
+        localStorage.setItem('username', username);
         socket.emit('join', username);
         setTimeout(() => {
             showCallSection();
-            loadRingtone(); // Cargar el tono al iniciar sesión
+            loadRingtone();
         }, 1000);
     }
 }
@@ -158,7 +158,7 @@ socket.on('offer', ({ offer, from }) => {
         currentOffer = offer;
         callerName.textContent = `${from} está llamándote.`;
         callRequestModal.classList.remove('hidden');
-        ringtone.currentTime = 0; // Reiniciar el tono desde el inicio
+        ringtone.currentTime = 0;
         ringtone.play();
     }
 });
@@ -203,9 +203,10 @@ function rejectCall() {
     currentOffer = null;
 }
 
-socket.on('answer', async ({ answer }) => {
+socket.on('answer', async ({ answer, from }) => {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
     document.getElementById('call-status').textContent = `Estado: En llamada con ${callUsernameInput.value}`;
+    remoteUsername.textContent = callUsernameInput.value; // Asegurar nombre remoto para el emisor
 });
 
 socket.on('ice-candidate', async ({ candidate }) => {
