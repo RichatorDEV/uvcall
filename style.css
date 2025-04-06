@@ -36,13 +36,13 @@ h1 {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-h2 {
+h2, h3 {
     font-size: 1.5em;
     margin-bottom: 20px;
 }
 
 .form input, .controls input {
-    width: 100%;
+    width: calc(100% - 24px); /* Ajustar para padding */
     padding: 12px;
     margin: 10px 0;
     border: none;
@@ -51,6 +51,7 @@ h2 {
     color: #fff;
     font-size: 1em;
     transition: background 0.3s;
+    box-sizing: border-box;
 }
 
 .form input:focus, .controls input:focus {
@@ -59,9 +60,9 @@ h2 {
 }
 
 .form button, .controls button {
-    width: 100%;
+    width: calc(100% - 24px); /* Ajustar para que no sobresalga */
     padding: 12px;
-    margin: 10px 0;
+    margin: 10px auto; /* Centrar y evitar desborde */
     border: none;
     border-radius: 25px;
     background: #007bff;
@@ -69,6 +70,8 @@ h2 {
     font-size: 1em;
     cursor: pointer;
     transition: background 0.3s, transform 0.2s;
+    display: block;
+    max-width: 200px; /* Limitar ancho máximo */
 }
 
 .form button:hover, .controls button:hover {
@@ -80,6 +83,16 @@ h2 {
 #call-btn:hover { background: #218838; }
 #hang-btn { background: #dc3545; }
 #hang-btn:hover { background: #c82333; }
+#settings-btn {
+    background: #6c757d;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    font-size: 1.2em;
+    border-radius: 50%;
+    margin: 10px auto;
+}
+#settings-btn:hover { background: #5a6268; }
 
 .switch {
     cursor: pointer;
@@ -135,6 +148,24 @@ video {
 
 .user-list li:hover {
     background: rgba(255, 255, 255, 0.3);
+}
+
+.settings {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+.settings input[type="file"] {
+    width: calc(100% - 24px);
+    margin: 10px 0;
+    color: #fff;
+}
+
+.settings button {
+    width: calc(100% - 24px);
+    max-width: 150px;
 }
 
 .hidden {
