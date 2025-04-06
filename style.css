@@ -20,6 +20,8 @@ body {
     max-width: 450px;
     text-align: center;
     animation: fadeIn 0.5s ease-in-out;
+    position: relative;
+    z-index: 1;
 }
 
 @keyframes fadeIn {
@@ -136,7 +138,7 @@ video {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .modal {
@@ -149,6 +151,7 @@ video {
     display: flex;
     justify-content: center;
     align-items: center;
+    z-index: 1000;
 }
 
 .modal-content {
