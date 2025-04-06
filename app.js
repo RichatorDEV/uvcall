@@ -22,9 +22,19 @@ const callUsernameInput = document.getElementById('call-username');
 
 document.addEventListener('DOMContentLoaded', () => {
     callRequestModal.classList.add('hidden');
-    authSection.classList.remove('hidden');
-    callSection.classList.add('hidden');
-    loadRingtone();
+    const savedUsername = localStorage.getItem('username');
+    if (savedUsername) {
+        // Si hay un usuario guardado, iniciar sesión automáticamente
+        isLoggedIn = true;
+        document.getElementById('current-user').textContent = savedUsername;
+        localUsername.textContent = savedUsername;
+        socket.emit('join', savedUsername);
+        showCallSection();
+        loadRingtone();
+    } else {
+        authSection.classList.remove('hidden');
+        callSection.classList.add('hidden');
+    }
 });
 
 async function register() {
@@ -72,10 +82,14 @@ async function login() {
     if (res.ok) {
         loginStatus.classList.add('success');
         document.getElementById('current-user').textContent = username;
-        localUsername.textContent = username; // Mostrar nombre local
+        localUsername.textContent = username;
         isLoggedIn = true;
+        localStorage.setItem('username', username); // Guardar el usuario en localStorage
         socket.emit('join', username);
-        setTimeout(() => showCallSection(), 1000);
+        setTimeout(() => {
+            showCallSection();
+            loadRingtone(); // Cargar el tono al iniciar sesión
+        }, 1000);
     }
 }
 
@@ -98,7 +112,7 @@ async function startCall() {
     peerConnection.ontrack = (event) => {
         remoteVideo.srcObject = event.streams[0];
         remoteVideoOff.classList.add('hidden');
-        remoteUsername.textContent = callUsername; // Mostrar nombre remoto
+        remoteUsername.textContent = callUsername;
     };
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
@@ -144,6 +158,7 @@ socket.on('offer', ({ offer, from }) => {
         currentOffer = offer;
         callerName.textContent = `${from} está llamándote.`;
         callRequestModal.classList.remove('hidden');
+        ringtone.currentTime = 0; // Reiniciar el tono desde el inicio
         ringtone.play();
     }
 });
@@ -161,7 +176,7 @@ async function acceptCall() {
     peerConnection.ontrack = (event) => {
         remoteVideo.srcObject = event.streams[0];
         remoteVideoOff.classList.add('hidden');
-        remoteUsername.textContent = currentCaller; // Mostrar nombre remoto
+        remoteUsername.textContent = currentCaller;
     };
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
