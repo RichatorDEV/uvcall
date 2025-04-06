@@ -4,37 +4,56 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     margin: 0;
     color: #fff;
+    overflow: auto;
 }
 
 .container {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    width: 100%;
-    max-width: 400px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 450px;
     text-align: center;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 h1 {
-    font-size: 2em;
-    margin-bottom: 20px;
+    font-size: 2.2em;
+    margin-bottom: 25px;
     color: #fff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.form input {
+h2 {
+    font-size: 1.5em;
+    margin-bottom: 20px;
+}
+
+.form input, .controls input {
     width: 100%;
     padding: 12px;
     margin: 10px 0;
     border: none;
     border-radius: 25px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.25);
     color: #fff;
     font-size: 1em;
+    transition: background 0.3s;
+}
+
+.form input:focus, .controls input:focus {
+    background: rgba(255, 255, 255, 0.35);
+    outline: none;
 }
 
 .form button, .controls button {
@@ -47,11 +66,12 @@ h1 {
     color: #fff;
     font-size: 1em;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: background 0.3s, transform 0.2s;
 }
 
 .form button:hover, .controls button:hover {
     background: #0056b3;
+    transform: scale(1.05);
 }
 
 #call-btn { background: #28a745; }
@@ -59,9 +79,31 @@ h1 {
 #hang-btn { background: #dc3545; }
 #hang-btn:hover { background: #c82333; }
 
+.switch {
+    cursor: pointer;
+    color: #a8cfff;
+    margin-top: 15px;
+    transition: color 0.3s;
+}
+
+.switch:hover {
+    color: #fff;
+}
+
+.status {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: #ffcccb;
+}
+
+.status.success {
+    color: #ccffcc;
+}
+
 .video-container {
     display: flex;
     justify-content: space-between;
+    gap: 10px;
     margin: 20px 0;
 }
 
@@ -69,6 +111,7 @@ video {
     width: 48%;
     border-radius: 10px;
     background: #000;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 .user-list {
@@ -81,10 +124,66 @@ video {
 }
 
 .user-list li {
-    padding: 8px;
+    padding: 10px;
     background: rgba(255, 255, 255, 0.2);
     margin: 5px 0;
     border-radius: 10px;
+    transition: background 0.3s;
 }
 
-.hidden { display: none; }
+.user-list li:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.hidden {
+    display: none;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 15px;
+    text-align: center;
+    color: #333;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.modal-content button {
+    margin: 10px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.modal-content button:first-child {
+    background: #28a745;
+    color: #fff;
+}
+
+.modal-content button:first-child:hover {
+    background: #218838;
+}
+
+.modal-content button:last-child {
+    background: #dc3545;
+    color: #fff;
+}
+
+.modal-content button:last-child:hover {
+    background: #c82333;
+}
