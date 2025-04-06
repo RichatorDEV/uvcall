@@ -9,7 +9,7 @@
 <body>
     <div class="container" id="auth-section">
         <h1>WebRTC Chat</h1>
-        <div class="form" id="register-form">
+        <div class="form hidden" id="register-form">
             <h2>Registro</h2>
             <input type="text" id="reg-username" placeholder="Usuario" required>
             <input type="password" id="reg-password" placeholder="Contraseña" required>
@@ -17,7 +17,7 @@
             <p class="switch" onclick="showLogin()">¿Ya tienes cuenta? Inicia sesión</p>
             <p id="reg-status" class="status"></p>
         </div>
-        <div class="form hidden" id="login-form">
+        <div class="form" id="login-form">
             <h2>Iniciar Sesión</h2>
             <input type="text" id="login-username" placeholder="Usuario" required>
             <input type="password" id="login-password" placeholder="Contraseña" required>
@@ -39,6 +39,13 @@
             <button id="call-btn" onclick="startCall()">Llamar</button>
             <button id="hang-btn" onclick="hangUp()" disabled>Colgar</button>
             <button onclick="logout()">Cerrar Sesión</button>
+            <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
+        </div>
+        <div class="settings hidden" id="settings-panel">
+            <h3>Ajustes</h3>
+            <label for="ringtone-upload">Tono de llamada:</label>
+            <input type="file" id="ringtone-upload" accept="audio/*">
+            <button onclick="saveRingtone()">Guardar</button>
         </div>
         <div class="user-list">
             <h3>Usuarios Conectados</h3>
@@ -55,6 +62,8 @@
             <button onclick="rejectCall()">Rechazar</button>
         </div>
     </div>
+
+    <audio id="ringtone" loop></audio>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="app.js"></script>
