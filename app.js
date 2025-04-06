@@ -13,7 +13,6 @@ const localUsername = document.getElementById('local-username');
 const remoteUsername = document.getElementById('remote-username');
 const callRequestModal = document.getElementById('call-request-modal');
 const callerName = document.getElementById('caller-name');
-const sobrecito = document.getElementById('call-username');
 const ringtone = document.getElementById('ringtone');
 const settingsPanel = document.getElementById('settings-panel');
 const callBtn = document.getElementById('call-btn');
@@ -27,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedUsername) {
         isLoggedIn = true;
         document.getElementById('current-user').textContent = savedUsername;
-        localUsername.textContent = savedUsername;
         socket.emit('join', savedUsername);
         showCallSection();
         loadRingtone();
@@ -82,7 +80,6 @@ async function login() {
     if (res.ok) {
         loginStatus.classList.add('success');
         document.getElementById('current-user').textContent = username;
-        localUsername.textContent = username;
         isLoggedIn = true;
         localStorage.setItem('username', username);
         socket.emit('join', username);
@@ -122,6 +119,7 @@ async function startCall() {
     await peerConnection.setLocalDescription(offer);
     socket.emit('offer', { offer, to: callUsername });
 
+    localUsername.textContent = document.getElementById('current-user').textContent; // Mostrar nombre local al iniciar llamada
     callBtn.classList.add('hidden');
     hangBtn.classList.remove('hidden');
     cameraBtn.classList.remove('hidden');
@@ -138,7 +136,8 @@ function hangUp() {
     localVideo.srcObject = remoteVideo.srcObject = null;
     localVideoOff.classList.add('hidden');
     remoteVideoOff.classList.add('hidden');
-    remoteUsername.textContent = '';
+    localUsername.textContent = ''; // Ocultar nombre local al colgar
+    remoteUsername.textContent = ''; // Ocultar nombre remoto al colgar
     document.getElementById('call-status').textContent = 'Estado: Listo';
     callBtn.classList.remove('hidden');
     hangBtn.classList.add('hidden');
@@ -159,7 +158,7 @@ socket.on('offer', ({ offer, from }) => {
         callerName.textContent = `${from} está llamándote.`;
         callRequestModal.classList.remove('hidden');
         ringtone.currentTime = 0;
-        ringtone.play();
+        ringtone.play().catch(error => console.log('Error al reproducir tono:', error));
     }
 });
 
@@ -187,6 +186,7 @@ async function acceptCall() {
     await peerConnection.setLocalDescription(answer);
     socket.emit('answer', { answer, to: currentCaller });
 
+    localUsername.textContent = document.getElementById('current-user').textContent; // Mostrar nombre local al aceptar
     callStatus.textContent = `Estado: En llamada con ${currentCaller}`;
     callBtn.classList.add('hidden');
     hangBtn.classList.remove('hidden');
@@ -206,7 +206,7 @@ function rejectCall() {
 socket.on('answer', async ({ answer, from }) => {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
     document.getElementById('call-status').textContent = `Estado: En llamada con ${callUsernameInput.value}`;
-    remoteUsername.textContent = callUsernameInput.value; // Asegurar nombre remoto para el emisor
+    remoteUsername.textContent = callUsernameInput.value;
 });
 
 socket.on('ice-candidate', async ({ candidate }) => {
@@ -252,6 +252,8 @@ function showCallSection() {
     hangBtn.classList.add('hidden');
     cameraBtn.classList.add('hidden');
     callUsernameInput.classList.remove('hidden');
+    localUsername.textContent = ''; // Asegurar que el nombre local esté oculto al inicio
+    remoteUsername.textContent = ''; // Asegurar que el nombre remoto esté oculto al inicio
 }
 
 function clearInputs(section) {
