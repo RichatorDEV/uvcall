@@ -1,22 +1,27 @@
 const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
-let localStream, peerConnection, currentCaller, currentOffer, isLoggedIn = false;
+let localStream, peerConnection, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true;
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 const authSection = document.getElementById('auth-section');
 const callSection = document.getElementById('call-section');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
+const localVideoOff = document.getElementById('localVideoOff');
+const remoteVideoOff = document.getElementById('remoteVideoOff');
 const callRequestModal = document.getElementById('call-request-modal');
 const callerName = document.getElementById('caller-name');
 const ringtone = document.getElementById('ringtone');
 const settingsPanel = document.getElementById('settings-panel');
+const callBtn = document.getElementById('call-btn');
+const hangBtn = document.getElementById('hang-btn');
+const cameraBtn = document.getElementById('camera-btn');
 
 document.addEventListener('DOMContentLoaded', () => {
     callRequestModal.classList.add('hidden');
     authSection.classList.remove('hidden');
     callSection.classList.add('hidden');
-    loadRingtone(); // Cargar tono de llamada al iniciar
+    loadRingtone();
 });
 
 async function register() {
@@ -86,7 +91,10 @@ async function startCall() {
     peerConnection = new RTCPeerConnection(config);
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-    peerConnection.ontrack = (event) => remoteVideo.srcObject = event.streams[0];
+    peerConnection.ontrack = (event) => {
+        remoteVideo.srcObject = event.streams[0];
+        remoteVideoOff.classList.add('hidden');
+    };
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
     };
@@ -95,21 +103,31 @@ async function startCall() {
     await peerConnection.setLocalDescription(offer);
     socket.emit('offer', { offer, to: callUsername });
 
-    document.getElementById('call-btn').disabled = true;
-    document.getElementById('hang-btn').disabled = false;
+    callBtn.classList.add('hidden');
+    hangBtn.classList.remove('hidden');
+    cameraBtn.classList.remove('hidden');
 }
 
 function hangUp() {
-    if (peerConnection) peerConnection.close();
+    if (peerConnection) {
+        const remoteUser = currentCaller || document.getElementById('call-username').value;
+        socket.emit('hangup', { to: remoteUser });
+        peerConnection.close();
+    }
     if (localStream) localStream.getTracks().forEach(track => track.stop());
     localVideo.srcObject = remoteVideo.srcObject = null;
+    localVideoOff.classList.add('hidden');
+    remoteVideoOff.classList.add('hidden');
     document.getElementById('call-status').textContent = 'Estado: Listo';
-    document.getElementById('call-btn').disabled = false;
-    document.getElementById('hang-btn').disabled = true;
+    callBtn.classList.remove('hidden');
+    hangBtn.classList.add('hidden');
+    cameraBtn.classList.add('hidden');
     peerConnection = null;
     currentCaller = null;
     currentOffer = null;
     ringtone.pause();
+    cameraOn = true;
+    cameraBtn.textContent = 'Apagar Cámara';
 }
 
 function logout() {
@@ -126,7 +144,7 @@ socket.on('offer', ({ offer, from }) => {
         currentOffer = offer;
         callerName.textContent = `${from} está llamándote.`;
         callRequestModal.classList.remove('hidden');
-        ringtone.play(); // Reproducir tono al recibir llamada
+        ringtone.play();
     }
 });
 
@@ -140,7 +158,10 @@ async function acceptCall() {
     peerConnection = new RTCPeerConnection(config);
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-    peerConnection.ontrack = (event) => remoteVideo.srcObject = event.streams[0];
+    peerConnection.ontrack = (event) => {
+        remoteVideo.srcObject = event.streams[0];
+        remoteVideoOff.classList.add('hidden');
+    };
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
     };
@@ -151,8 +172,9 @@ async function acceptCall() {
     socket.emit('answer', { answer, to: currentCaller });
 
     callStatus.textContent = `Estado: En llamada con ${currentCaller}`;
-    document.getElementById('call-btn').disabled = true;
-    document.getElementById('hang-btn').disabled = false;
+    callBtn.classList.add('hidden');
+    hangBtn.classList.remove('hidden');
+    cameraBtn.classList.remove('hidden');
 }
 
 function rejectCall() {
@@ -176,6 +198,11 @@ socket.on('ice-candidate', async ({ candidate }) => {
 socket.on('reject', () => {
     hangUp();
     document.getElementById('call-status').textContent = 'Estado: La llamada fue rechazada';
+});
+
+socket.on('hangup', () => {
+    hangUp();
+    document.getElementById('call-status').textContent = 'Estado: Llamada finalizada';
 });
 
 socket.on('userList', (users) => {
@@ -208,6 +235,9 @@ function showCallSection() {
     callSection.classList.remove('hidden');
     callRequestModal.classList.add('hidden');
     document.getElementById('call-status').textContent = 'Estado: Listo';
+    callBtn.classList.remove('hidden');
+    hangBtn.classList.add('hidden');
+    cameraBtn.classList.add('hidden');
 }
 
 function clearInputs(section) {
@@ -242,7 +272,7 @@ async function saveRingtone() {
     });
     const data = await res.json();
     if (res.ok) {
-        loadRingtone(); // Recargar el tono después de guardarlo
+        loadRingtone();
         alert('Tono de llamada guardado con éxito.');
     } else {
         alert('Error al guardar el tono: ' + data.error);
@@ -258,4 +288,14 @@ async function loadRingtone() {
         const blob = await res.blob();
         ringtone.src = URL.createObjectURL(blob);
     }
+}
+
+function toggleCamera() {
+    if (!localStream) return;
+
+    const videoTrack = localStream.getVideoTracks()[0];
+    cameraOn = !cameraOn;
+    videoTrack.enabled = cameraOn;
+    localVideoOff.classList.toggle('hidden', cameraOn);
+    cameraBtn.textContent = cameraOn ? 'Apagar Cámara' : 'Encender Cámara';
 }
