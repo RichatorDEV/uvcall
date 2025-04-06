@@ -1,4 +1,5 @@
-const socket = io();
+const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
+const socket = io(SERVER_URL);
 let localStream, peerConnection;
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -10,7 +11,7 @@ const remoteVideo = document.getElementById('remoteVideo');
 async function register() {
     const username = document.getElementById('reg-username').value;
     const password = document.getElementById('reg-password').value;
-    const res = await fetch('/register', {
+    const res = await fetch(`${SERVER_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -23,7 +24,7 @@ async function register() {
 async function login() {
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
-    const res = await fetch('/login', {
+    const res = await fetch(`${SERVER_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
