@@ -1,7 +1,7 @@
 const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
 let localStream, peerConnection, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true;
-const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }; // Más STUN servers
 
 const authSection = document.getElementById('auth-section');
 const callSection = document.getElementById('call-section');
@@ -20,7 +20,7 @@ const hangBtn = document.getElementById('hang-btn');
 const cameraBtn = document.getElementById('camera-btn');
 const callUsernameInput = document.getElementById('call-username');
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     callRequestModal.classList.add('hidden');
     const savedUsername = localStorage.getItem('username');
     if (savedUsername) {
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('current-user').textContent = savedUsername;
         socket.emit('join', savedUsername);
         showCallSection();
-        loadRingtone();
+        await loadRingtone();
     } else {
         authSection.classList.remove('hidden');
         callSection.classList.add('hidden');
@@ -83,9 +83,9 @@ async function login() {
         isLoggedIn = true;
         localStorage.setItem('username', username);
         socket.emit('join', username);
-        setTimeout(() => {
+        setTimeout(async () => {
             showCallSection();
-            loadRingtone();
+            await loadRingtone();
         }, 1000);
     }
 }
@@ -100,30 +100,35 @@ async function startCall() {
     }
 
     callStatus.textContent = `Estado: Solicitando llamada a ${callUsername}...`;
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localVideo.srcObject = localStream;
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
 
-    peerConnection = new RTCPeerConnection(config);
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        peerConnection = new RTCPeerConnection(config);
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-    peerConnection.ontrack = (event) => {
-        remoteVideo.srcObject = event.streams[0];
-        remoteVideoOff.classList.add('hidden');
-        remoteUsername.textContent = callUsername;
-    };
-    peerConnection.onicecandidate = (event) => {
-        if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
-    };
+        peerConnection.ontrack = (event) => {
+            remoteVideo.srcObject = event.streams[0];
+            remoteVideoOff.classList.add('hidden');
+            remoteUsername.textContent = callUsername;
+        };
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
+        };
 
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    socket.emit('offer', { offer, to: callUsername });
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit('offer', { offer, to: callUsername });
 
-    localUsername.textContent = document.getElementById('current-user').textContent; // Mostrar nombre local al iniciar llamada
-    callBtn.classList.add('hidden');
-    hangBtn.classList.remove('hidden');
-    cameraBtn.classList.remove('hidden');
-    callUsernameInput.classList.add('hidden');
+        localUsername.textContent = document.getElementById('current-user').textContent;
+        callBtn.classList.add('hidden');
+        hangBtn.classList.remove('hidden');
+        cameraBtn.classList.remove('hidden');
+        callUsernameInput.classList.add('hidden');
+    } catch (error) {
+        console.error('Error en startCall:', error);
+        callStatus.textContent = 'Estado: Error al iniciar la llamada';
+    }
 }
 
 function hangUp() {
@@ -136,8 +141,8 @@ function hangUp() {
     localVideo.srcObject = remoteVideo.srcObject = null;
     localVideoOff.classList.add('hidden');
     remoteVideoOff.classList.add('hidden');
-    localUsername.textContent = ''; // Ocultar nombre local al colgar
-    remoteUsername.textContent = ''; // Ocultar nombre remoto al colgar
+    localUsername.textContent = '';
+    remoteUsername.textContent = '';
     document.getElementById('call-status').textContent = 'Estado: Listo';
     callBtn.classList.remove('hidden');
     hangBtn.classList.add('hidden');
@@ -147,11 +152,12 @@ function hangUp() {
     currentCaller = null;
     currentOffer = null;
     ringtone.pause();
+    ringtone.currentTime = 0; // Reiniciar tono al colgar
     cameraOn = true;
     cameraBtn.textContent = 'Apagar Cámara';
 }
 
-socket.on('offer', ({ offer, from }) => {
+socket.on('offer', async ({ offer, from }) => {
     if (isLoggedIn && !peerConnection && !callSection.classList.contains('hidden')) {
         currentCaller = from;
         currentOffer = offer;
@@ -165,38 +171,45 @@ socket.on('offer', ({ offer, from }) => {
 async function acceptCall() {
     callRequestModal.classList.add('hidden');
     ringtone.pause();
+    ringtone.currentTime = 0; // Asegurar que el tono se detenga y reinicie
     const callStatus = document.getElementById('call-status');
 
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localVideo.srcObject = localStream;
-    peerConnection = new RTCPeerConnection(config);
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+        peerConnection = new RTCPeerConnection(config);
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-    peerConnection.ontrack = (event) => {
-        remoteVideo.srcObject = event.streams[0];
-        remoteVideoOff.classList.add('hidden');
-        remoteUsername.textContent = currentCaller;
-    };
-    peerConnection.onicecandidate = (event) => {
-        if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
-    };
+        peerConnection.ontrack = (event) => {
+            remoteVideo.srcObject = event.streams[0];
+            remoteVideoOff.classList.add('hidden');
+            remoteUsername.textContent = currentCaller;
+        };
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
+        };
 
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(currentOffer));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    socket.emit('answer', { answer, to: currentCaller });
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(currentOffer));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        socket.emit('answer', { answer, to: currentCaller });
 
-    localUsername.textContent = document.getElementById('current-user').textContent; // Mostrar nombre local al aceptar
-    callStatus.textContent = `Estado: En llamada con ${currentCaller}`;
-    callBtn.classList.add('hidden');
-    hangBtn.classList.remove('hidden');
-    cameraBtn.classList.remove('hidden');
-    callUsernameInput.classList.add('hidden');
+        localUsername.textContent = document.getElementById('current-user').textContent;
+        callStatus.textContent = `Estado: En llamada con ${currentCaller}`;
+        callBtn.classList.add('hidden');
+        hangBtn.classList.remove('hidden');
+        cameraBtn.classList.remove('hidden');
+        callUsernameInput.classList.add('hidden');
+    } catch (error) {
+        console.error('Error en acceptCall:', error);
+        callStatus.textContent = 'Estado: Error al aceptar la llamada';
+    }
 }
 
 function rejectCall() {
     callRequestModal.classList.add('hidden');
     ringtone.pause();
+    ringtone.currentTime = 0;
     socket.emit('reject', { to: currentCaller });
     document.getElementById('call-status').textContent = 'Estado: Llamada rechazada';
     currentCaller = null;
@@ -204,13 +217,23 @@ function rejectCall() {
 }
 
 socket.on('answer', async ({ answer, from }) => {
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    document.getElementById('call-status').textContent = `Estado: En llamada con ${callUsernameInput.value}`;
-    remoteUsername.textContent = callUsernameInput.value;
+    try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        document.getElementById('call-status').textContent = `Estado: En llamada con ${callUsernameInput.value}`;
+        remoteUsername.textContent = callUsernameInput.value;
+    } catch (error) {
+        console.error('Error en setRemoteDescription:', error);
+    }
 });
 
 socket.on('ice-candidate', async ({ candidate }) => {
-    if (peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    if (peerConnection) {
+        try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (error) {
+            console.error('Error al añadir ICE candidate:', error);
+        }
+    }
 });
 
 socket.on('reject', () => {
@@ -252,8 +275,8 @@ function showCallSection() {
     hangBtn.classList.add('hidden');
     cameraBtn.classList.add('hidden');
     callUsernameInput.classList.remove('hidden');
-    localUsername.textContent = ''; // Asegurar que el nombre local esté oculto al inicio
-    remoteUsername.textContent = ''; // Asegurar que el nombre remoto esté oculto al inicio
+    localUsername.textContent = '';
+    remoteUsername.textContent = '';
 }
 
 function clearInputs(section) {
@@ -288,7 +311,7 @@ async function saveRingtone() {
     });
     const data = await res.json();
     if (res.ok) {
-        loadRingtone();
+        await loadRingtone();
         alert('Tono de llamada guardado con éxito.');
     } else {
         alert('Error al guardar el tono: ' + data.error);
@@ -299,10 +322,19 @@ async function loadRingtone() {
     const username = document.getElementById('current-user').textContent;
     if (!username) return;
 
-    const res = await fetch(`${SERVER_URL}/get-ringtone?username=${username}`);
-    if (res.ok) {
-        const blob = await res.blob();
-        ringtone.src = URL.createObjectURL(blob);
+    try {
+        const res = await fetch(`${SERVER_URL}/get-ringtone?username=${username}`);
+        if (res.ok) {
+            const blob = await res.blob();
+            const newSrc = URL.createObjectURL(blob);
+            if (ringtone.src !== newSrc) {
+                URL.revokeObjectURL(ringtone.src);
+                ringtone.src = newSrc;
+            }
+            await ringtone.load();
+        }
+    } catch (error) {
+        console.log('Error al cargar el tono:', error);
     }
 }
 
