@@ -1,6 +1,6 @@
 const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
-let localStream, peerConnection, currentCaller;
+let localStream, peerConnection, currentCaller, currentOffer;
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 const authSection = document.getElementById('auth-section');
@@ -9,6 +9,11 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callRequestModal = document.getElementById('call-request-modal');
 const callerName = document.getElementById('caller-name');
+
+// Inicializar estado
+document.addEventListener('DOMContentLoaded', () => {
+    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto al cargar
+});
 
 async function register() {
     const username = document.getElementById('reg-username').value.trim();
@@ -20,6 +25,7 @@ async function register() {
         return;
     }
 
+    regStatus.textContent = 'Registrando...';
     const res = await fetch(`${SERVER_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -43,6 +49,7 @@ async function login() {
         return;
     }
 
+    loginStatus.textContent = 'Iniciando sesión...';
     const res = await fetch(`${SERVER_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,17 +102,24 @@ function hangUp() {
     document.getElementById('call-btn').disabled = false;
     document.getElementById('hang-btn').disabled = true;
     peerConnection = null;
+    currentCaller = null;
+    currentOffer = null;
 }
 
 function logout() {
     hangUp();
+    socket.disconnect();
     showLogin();
+    socket.connect(); // Reconectar para futuros logins
 }
 
-socket.on('offer', async ({ offer, from }) => {
-    currentCaller = from;
-    callerName.textContent = `${from} está llamándote.`;
-    callRequestModal.classList.remove('hidden');
+socket.on('offer', ({ offer, from }) => {
+    if (!peerConnection) { // Solo mostrar modal si no estamos en una llamada
+        currentCaller = from;
+        currentOffer = offer;
+        callerName.textContent = `${from} está llamándote.`;
+        callRequestModal.classList.remove('hidden');
+    }
 });
 
 async function acceptCall() {
@@ -122,7 +136,7 @@ async function acceptCall() {
         if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
     };
 
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(currentOffer));
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
     socket.emit('answer', { answer, to: currentCaller });
@@ -136,6 +150,8 @@ function rejectCall() {
     callRequestModal.classList.add('hidden');
     socket.emit('reject', { to: currentCaller });
     document.getElementById('call-status').textContent = 'Estado: Llamada rechazada';
+    currentCaller = null;
+    currentOffer = null;
 }
 
 socket.on('answer', async ({ answer }) => {
@@ -161,6 +177,7 @@ function showRegister() {
     authSection.querySelector('#register-form').classList.remove('hidden');
     authSection.querySelector('#login-form').classList.add('hidden');
     callSection.classList.add('hidden');
+    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto
     clearInputs('reg');
     document.getElementById('reg-status').textContent = '';
     document.getElementById('reg-status').classList.remove('success');
@@ -170,6 +187,7 @@ function showLogin() {
     authSection.querySelector('#register-form').classList.add('hidden');
     authSection.querySelector('#login-form').classList.remove('hidden');
     callSection.classList.add('hidden');
+    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto
     clearInputs('login');
     document.getElementById('login-status').textContent = '';
     document.getElementById('login-status').classList.remove('success');
@@ -178,6 +196,7 @@ function showLogin() {
 function showCallSection() {
     authSection.classList.add('hidden');
     callSection.classList.remove('hidden');
+    callRequestModal.classList.add('hidden'); // Asegurar que el modal esté oculto al inicio
     document.getElementById('call-status').textContent = 'Estado: Listo';
 }
 
