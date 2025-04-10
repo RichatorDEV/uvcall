@@ -122,28 +122,38 @@ async function startCall() {
                 audio: true 
             });
             localVideo.srcObject = localStream;
+            console.log('Stream local obtenido:', localStream);
         }
 
         const pc = new RTCPeerConnection(config);
         peerConnections[callUsername] = pc;
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream);
+            console.log(`Track añadido a ${callUsername}:`, track);
+        });
 
-        pc.ontrack = (event) => addRemoteVideo(callUsername, event.streams[0]);
+        pc.ontrack = (event) => {
+            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
+            addRemoteVideo(callUsername, event.streams[0]);
+        };
         pc.onicecandidate = (event) => {
-            if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
+            if (event.candidate) {
+                socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
+                console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
+            }
         };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('offer', { offer, to: callUsername });
+        console.log(`Offer enviado a ${callUsername}:`, offer);
 
         localUsername.textContent = document.getElementById('current-user').textContent;
         callBtn.classList.add('hidden');
         addUserBtn.classList.remove('hidden');
         hangBtn.classList.remove('hidden');
         cameraBtn.classList.remove('hidden');
-        // No ocultamos callUsernameInput para permitir añadir usuarios
-        callUsernameInput.value = ''; // Limpiamos el input
+        callUsernameInput.value = '';
     } catch (error) {
         console.error('Error en startCall:', error);
         callStatus.textContent = 'Estado: Error al iniciar la llamada';
@@ -170,7 +180,7 @@ async function addUserToCall() {
         return;
     }
 
-    if (Object.keys(peerConnections).length >= MAX_PARTICIPANTS - 1) { // -1 porque el local ya cuenta
+    if (Object.keys(peerConnections).length >= MAX_PARTICIPANTS - 1) {
         callStatus.textContent = 'Estado: Límite de 4 participantes alcanzado.';
         return;
     }
@@ -179,17 +189,27 @@ async function addUserToCall() {
     try {
         const pc = new RTCPeerConnection(config);
         peerConnections[callUsername] = pc;
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream);
+            console.log(`Track añadido a ${callUsername}:`, track);
+        });
 
-        pc.ontrack = (event) => addRemoteVideo(callUsername, event.streams[0]);
+        pc.ontrack = (event) => {
+            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
+            addRemoteVideo(callUsername, event.streams[0]);
+        };
         pc.onicecandidate = (event) => {
-            if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
+            if (event.candidate) {
+                socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
+                console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
+            }
         };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('offer', { offer, to: callUsername });
-        callUsernameInput.value = ''; // Limpiar input tras añadir
+        console.log(`Offer enviado a ${callUsername}:`, offer);
+        callUsernameInput.value = '';
     } catch (error) {
         console.error('Error en addUserToCall:', error);
         callStatus.textContent = 'Estado: Error al añadir usuario';
@@ -209,9 +229,10 @@ function addRemoteVideo(username, stream) {
         videoContainer.appendChild(wrapper);
         const video = document.getElementById(`remoteVideo-${username}`);
         video.srcObject = stream;
-        console.log(`Video remoto añadido para ${username}`);
+        console.log(`Video remoto añadido para ${username}, stream:`, stream);
     } else {
-        existingVideo.srcObject = stream; // Actualizar stream si ya existe
+        existingVideo.srcObject = stream;
+        console.log(`Stream actualizado para ${username}:`, stream);
     }
     updateCallStatus();
 }
@@ -275,27 +296,38 @@ async function acceptCall() {
                 audio: true 
             });
             localVideo.srcObject = localStream;
+            console.log('Stream local obtenido al aceptar:', localStream);
         }
         const pc = new RTCPeerConnection(config);
         peerConnections[currentCaller] = pc;
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream);
+            console.log(`Track añadido a ${currentCaller}:`, track);
+        });
 
-        pc.ontrack = (event) => addRemoteVideo(currentCaller, event.streams[0]);
+        pc.ontrack = (event) => {
+            console.log(`Evento ontrack recibido de ${currentCaller}:`, event.streams);
+            addRemoteVideo(currentCaller, event.streams[0]);
+        };
         pc.onicecandidate = (event) => {
-            if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
+            if (event.candidate) {
+                socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
+                console.log(`ICE candidate enviado a ${currentCaller}:`, event.candidate);
+            }
         };
 
         await pc.setRemoteDescription(new RTCSessionDescription(currentOffer));
+        console.log(`Remote description seteada para ${currentCaller}:`, currentOffer);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         socket.emit('answer', { answer, to: currentCaller });
+        console.log(`Answer enviado a ${currentCaller}:`, answer);
 
         localUsername.textContent = document.getElementById('current-user').textContent;
         callBtn.classList.add('hidden');
         addUserBtn.classList.remove('hidden');
         hangBtn.classList.remove('hidden');
         cameraBtn.classList.remove('hidden');
-        // No ocultamos callUsernameInput
         updateCallStatus();
     } catch (error) {
         console.error('Error en acceptCall:', error);
@@ -317,6 +349,7 @@ socket.on('answer', async ({ answer, from }) => {
     if (pc) {
         try {
             await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log(`Remote description seteada para ${from} desde answer:`, answer);
             updateCallStatus();
         } catch (error) {
             console.error('Error en setRemoteDescription:', error);
@@ -329,6 +362,7 @@ socket.on('ice-candidate', async ({ candidate, from }) => {
     if (pc) {
         try {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log(`ICE candidate recibido y añadido de ${from}:`, candidate);
         } catch (error) {
             console.error('Error al añadir ICE candidate:', error);
         }
