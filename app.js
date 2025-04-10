@@ -1,6 +1,6 @@
 const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
-let localStream, peerConnection, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true;
+let localStream, peerConnection, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true, selectedCameraId = null;
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
 
 const authSection = document.getElementById('auth-section');
@@ -19,6 +19,7 @@ const callBtn = document.getElementById('call-btn');
 const hangBtn = document.getElementById('hang-btn');
 const cameraBtn = document.getElementById('camera-btn');
 const callUsernameInput = document.getElementById('call-username');
+const cameraSelect = document.getElementById('camera-select');
 
 document.addEventListener('DOMContentLoaded', async () => {
     callRequestModal.classList.add('hidden');
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         socket.emit('join', savedUsername);
         showCallSection();
         await loadRingtone();
+        await populateCameraOptions(); // Cargar opciones de cámara al iniciar
     } else {
         authSection.classList.remove('hidden');
         callSection.classList.add('hidden');
@@ -86,6 +88,7 @@ async function login() {
         setTimeout(async () => {
             showCallSection();
             await loadRingtone();
+            await populateCameraOptions();
         }, 1000);
     }
 }
@@ -101,7 +104,10 @@ async function startCall() {
 
     callStatus.textContent = `Estado: Solicitando llamada a ${callUsername}...`;
     try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
+            audio: true 
+        });
         localVideo.srcObject = localStream;
 
         peerConnection = new RTCPeerConnection(config);
@@ -151,7 +157,7 @@ function hangUp() {
     peerConnection = null;
     currentCaller = null;
     currentOffer = null;
-    stopRingtone(); // Usar función para detener tono
+    stopRingtone();
     cameraOn = true;
     cameraBtn.textContent = 'Apagar Cámara';
 }
@@ -173,7 +179,10 @@ async function acceptCall() {
     const callStatus = document.getElementById('call-status');
 
     try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
+            audio: true 
+        });
         localVideo.srcObject = localStream;
         peerConnection = new RTCPeerConnection(config);
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
@@ -206,7 +215,7 @@ async function acceptCall() {
 
 function rejectCall() {
     callRequestModal.classList.add('hidden');
-    stopRingtone(); // Detener tono al rechazar
+    stopRingtone();
     socket.emit('reject', { to: currentCaller });
     document.getElementById('call-status').textContent = 'Estado: Llamada rechazada';
     currentCaller = null;
@@ -288,6 +297,9 @@ function clearInputs(section) {
 
 function toggleSettings() {
     settingsPanel.classList.toggle('hidden');
+    if (!settingsPanel.classList.contains('hidden')) {
+        populateCameraOptions(); // Actualizar lista de cámaras al abrir ajustes
+    }
 }
 
 async function saveRingtone() {
@@ -329,6 +341,7 @@ async function loadRingtone() {
                 ringtone.src = newSrc;
             }
             await ringtone.load();
+            ringtone.loop = false; // Asegurar que no esté en loop
         }
     } catch (error) {
         console.log('Error al cargar el tono:', error);
@@ -339,9 +352,50 @@ function stopRingtone() {
     try {
         ringtone.pause();
         ringtone.currentTime = 0;
+        ringtone.loop = false; // Desactivar loop explícitamente
         console.log('Tono detenido');
     } catch (error) {
         console.error('Error al detener el tono:', error);
+    }
+}
+
+async function populateCameraOptions() {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        cameraSelect.innerHTML = ''; // Limpiar opciones previas
+        videoDevices.forEach((device, index) => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.text = device.label || `Cámara ${index + 1}`;
+            cameraSelect.appendChild(option);
+        });
+        if (videoDevices.length > 0 && !selectedCameraId) {
+            selectedCameraId = videoDevices[0].deviceId; // Seleccionar la primera cámara por defecto
+        }
+    } catch (error) {
+        console.error('Error al enumerar cámaras:', error);
+    }
+}
+
+async function changeCamera() {
+    selectedCameraId = cameraSelect.value;
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { deviceId: { exact: selectedCameraId } }, 
+            audio: true 
+        });
+        localVideo.srcObject = localStream;
+        if (peerConnection) {
+            const senders = peerConnection.getSenders();
+            const videoTrack = localStream.getVideoTracks()[0];
+            senders.forEach(sender => {
+                if (sender.track.kind === 'video') {
+                    sender.replaceTrack(videoTrack);
+                }
+            });
+        }
     }
 }
 
