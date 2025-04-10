@@ -2,6 +2,7 @@ const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
 let localStream, peerConnections = {}, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true, selectedCameraId = null;
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+const MAX_PARTICIPANTS = 4; // Límite de 4 participantes (1 local + 3 remotos)
 
 const authSection = document.getElementById('auth-section');
 const callSection = document.getElementById('call-section');
@@ -141,7 +142,8 @@ async function startCall() {
         addUserBtn.classList.remove('hidden');
         hangBtn.classList.remove('hidden');
         cameraBtn.classList.remove('hidden');
-        callUsernameInput.classList.add('hidden');
+        // No ocultamos callUsernameInput para permitir añadir usuarios
+        callUsernameInput.value = ''; // Limpiamos el input
     } catch (error) {
         console.error('Error en startCall:', error);
         callStatus.textContent = 'Estado: Error al iniciar la llamada';
@@ -168,20 +170,30 @@ async function addUserToCall() {
         return;
     }
 
+    if (Object.keys(peerConnections).length >= MAX_PARTICIPANTS - 1) { // -1 porque el local ya cuenta
+        callStatus.textContent = 'Estado: Límite de 4 participantes alcanzado.';
+        return;
+    }
+
     callStatus.textContent = `Estado: Añadiendo a ${callUsername} a la llamada...`;
-    const pc = new RTCPeerConnection(config);
-    peerConnections[callUsername] = pc;
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    try {
+        const pc = new RTCPeerConnection(config);
+        peerConnections[callUsername] = pc;
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-    pc.ontrack = (event) => addRemoteVideo(callUsername, event.streams[0]);
-    pc.onicecandidate = (event) => {
-        if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
-    };
+        pc.ontrack = (event) => addRemoteVideo(callUsername, event.streams[0]);
+        pc.onicecandidate = (event) => {
+            if (event.candidate) socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
+        };
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('offer', { offer, to: callUsername });
-    callUsernameInput.value = ''; // Limpiar input tras añadir
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('offer', { offer, to: callUsername });
+        callUsernameInput.value = ''; // Limpiar input tras añadir
+    } catch (error) {
+        console.error('Error en addUserToCall:', error);
+        callStatus.textContent = 'Estado: Error al añadir usuario';
+    }
 }
 
 function addRemoteVideo(username, stream) {
@@ -197,7 +209,18 @@ function addRemoteVideo(username, stream) {
         videoContainer.appendChild(wrapper);
         const video = document.getElementById(`remoteVideo-${username}`);
         video.srcObject = stream;
+        console.log(`Video remoto añadido para ${username}`);
+    } else {
+        existingVideo.srcObject = stream; // Actualizar stream si ya existe
     }
+    updateCallStatus();
+}
+
+function updateCallStatus() {
+    const participants = Object.keys(peerConnections).join(', ');
+    document.getElementById('call-status').textContent = participants 
+        ? `Estado: En llamada con ${participants}` 
+        : 'Estado: Listo';
 }
 
 function hangUp() {
@@ -220,7 +243,7 @@ function hangUp() {
     addUserBtn.classList.add('hidden');
     hangBtn.classList.add('hidden');
     cameraBtn.classList.add('hidden');
-    callUsernameInput.classList.remove('hidden');
+    callUsernameInput.value = '';
     peerConnections = {};
     currentCaller = null;
     currentOffer = null;
@@ -268,12 +291,12 @@ async function acceptCall() {
         socket.emit('answer', { answer, to: currentCaller });
 
         localUsername.textContent = document.getElementById('current-user').textContent;
-        callStatus.textContent = `Estado: En llamada con ${Object.keys(peerConnections).join(', ')}`;
         callBtn.classList.add('hidden');
         addUserBtn.classList.remove('hidden');
         hangBtn.classList.remove('hidden');
         cameraBtn.classList.remove('hidden');
-        callUsernameInput.classList.add('hidden');
+        // No ocultamos callUsernameInput
+        updateCallStatus();
     } catch (error) {
         console.error('Error en acceptCall:', error);
         callStatus.textContent = 'Estado: Error al aceptar la llamada';
@@ -294,7 +317,7 @@ socket.on('answer', async ({ answer, from }) => {
     if (pc) {
         try {
             await pc.setRemoteDescription(new RTCSessionDescription(answer));
-            document.getElementById('call-status').textContent = `Estado: En llamada con ${Object.keys(peerConnections).join(', ')}`;
+            updateCallStatus();
         } catch (error) {
             console.error('Error en setRemoteDescription:', error);
         }
@@ -327,7 +350,7 @@ socket.on('hangup', ({ from }) => {
         if (Object.keys(peerConnections).length === 0) {
             hangUp();
         } else {
-            document.getElementById('call-status').textContent = `Estado: En llamada con ${Object.keys(peerConnections).join(', ')}`;
+            updateCallStatus();
         }
     }
 });
@@ -361,7 +384,7 @@ function showCallSection() {
     addUserBtn.classList.add('hidden');
     hangBtn.classList.add('hidden');
     cameraBtn.classList.add('hidden');
-    callUsernameInput.classList.remove('hidden');
+    callUsernameInput.value = '';
     localUsername.textContent = '';
 }
 
