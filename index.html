@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="container" id="auth-section">
-        <img src="https://files.catbox.moe/eaogb2.png" alt="UV Call" class="title-logo">
+        <h1>UV Call</h1>
         <div class="form hidden" id="register-form">
             <h2>Registro</h2>
             <input type="text" id="reg-username" placeholder="Usuario" required>
@@ -29,24 +29,21 @@
     </div>
 
     <div class="container hidden" id="call-section">
-        <img src="https://files.catbox.moe/eaogb2.png" alt="UV Call" class="title-logo">
+        <h1>UV Call</h1>
         <p>Bienvenido, <span id="current-user"></span></p>
         <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
-        <div class="video-container">
+        <div class="video-container" id="video-container">
             <div class="video-wrapper">
                 <span class="username-label" id="local-username"></span>
                 <video id="localVideo" autoplay muted></video>
                 <span class="video-off-text hidden" id="localVideoOff">Cámara Apagada</span>
             </div>
-            <div class="video-wrapper">
-                <span class="username-label" id="remote-username"></span>
-                <video id="remoteVideo" autoplay></video>
-                <span class="video-off-text hidden" id="remoteVideoOff">Cámara Apagada</span>
-            </div>
+            <!-- Los videos remotos se añadirán dinámicamente aquí -->
         </div>
         <div class="controls">
             <input type="text" id="call-username" placeholder="Usuario a llamar">
             <button id="call-btn" onclick="startCall()">Llamar</button>
+            <button id="add-user-btn" class="hidden" onclick="addUserToCall()">Añadir usuario</button>
             <button id="hang-btn" class="hidden" onclick="hangUp()">Colgar</button>
             <button id="camera-btn" class="hidden" onclick="toggleCamera()">Apagar Cámara</button>
         </div>
@@ -54,10 +51,11 @@
             <h3>Ajustes</h3>
             <label for="ringtone-upload">Tono de llamada:</label>
             <input type="file" id="ringtone-upload" accept="audio/*">
-            <button onclick="saveRingtone()">Guardar Tono</button>
+            <button onclick="saveRingtone()" class="modern-btn">Guardar Tono</button>
             <label for="camera-select">Seleccionar cámara:</label>
             <select id="camera-select"></select>
-            <button onclick="changeCamera()">Cambiar Cámara</button>
+            <button onclick="changeCamera()" class="modern-btn">Cambiar Cámara</button>
+            <button onclick="logout()" class="modern-btn logout-btn">Cerrar Sesión</button>
         </div>
         <p id="call-status" class="status">Estado: Listo</p>
     </div>
@@ -71,7 +69,7 @@
         </div>
     </div>
 
-    <audio id="ringtone"></audio> <!-- Quitamos el atributo 'loop' -->
+    <audio id="ringtone"></audio>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="app.js"></script>
