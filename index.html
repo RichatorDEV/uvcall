@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UV Call</title>
+    <link rel="icon" href="https://files.catbox.moe/eaogb2.png" type="image/png">
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/png" href="https://files.catbox.moe/eaogb2.png">
 </head>
 <body>
     <div class="container" id="auth-section">
-        <h1>UV Call</h1>
+        <img src="https://files.catbox.moe/eaogb2.png" alt="UV Call" class="title-logo">
         <div class="form hidden" id="register-form">
             <h2>Registro</h2>
             <input type="text" id="reg-username" placeholder="Usuario" required>
@@ -29,7 +29,7 @@
     </div>
 
     <div class="container hidden" id="call-section">
-        <h1>UV Call</h1>
+        <img src="https://files.catbox.moe/eaogb2.png" alt="UV Call" class="title-logo">
         <p>Bienvenido, <span id="current-user"></span></p>
         <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
         <div class="video-container">
@@ -54,7 +54,10 @@
             <h3>Ajustes</h3>
             <label for="ringtone-upload">Tono de llamada:</label>
             <input type="file" id="ringtone-upload" accept="audio/*">
-            <button onclick="saveRingtone()">Guardar</button>
+            <button onclick="saveRingtone()">Guardar Tono</button>
+            <label for="camera-select">Seleccionar cámara:</label>
+            <select id="camera-select"></select>
+            <button onclick="changeCamera()">Cambiar Cámara</button>
         </div>
         <p id="call-status" class="status">Estado: Listo</p>
     </div>
@@ -68,7 +71,7 @@
         </div>
     </div>
 
-    <audio id="ringtone" loop></audio>
+    <audio id="ringtone"></audio> <!-- Quitamos el atributo 'loop' -->
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="app.js"></script>
