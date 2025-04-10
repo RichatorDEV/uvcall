@@ -29,11 +29,9 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-h1 {
-    font-size: 2.2em;
+.title-logo {
+    width: 100px; /* Ajusta el tamaño según necesites */
     margin-bottom: 25px;
-    color: #fff;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 h2, h3 {
@@ -179,6 +177,23 @@ video {
     width: calc(100% - 24px);
     margin: 10px 0;
     color: #fff;
+}
+
+.settings select {
+    width: calc(100% - 24px);
+    padding: 12px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-size: 1em;
+    transition: background 0.3s;
+}
+
+.settings select:focus {
+    background: rgba(255, 255, 255, 0.35);
+    outline: none;
 }
 
 .settings button {
