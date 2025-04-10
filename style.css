@@ -85,6 +85,8 @@ h2, h3 {
 #hang-btn:hover { background: #c82333; }
 #camera-btn { background: #ffc107; }
 #camera-btn:hover { background: #e0a800; }
+#add-user-btn { background: #17a2b8; }
+#add-user-btn:hover { background: #138496; }
 #settings-btn {
     position: absolute;
     top: 10px;
@@ -125,6 +127,7 @@ h2, h3 {
 
 .video-container {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 10px;
     margin: 20px 0;
@@ -181,9 +184,49 @@ video {
     color: #fff;
 }
 
-.settings button {
+.settings select {
+    width: calc(100% - 24px);
+    padding: 12px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-size: 1em;
+    transition: background 0.3s;
+}
+
+.settings select:focus {
+    background: rgba(255, 255, 255, 0.35);
+    outline: none;
+}
+
+.settings .modern-btn {
     width: calc(100% - 24px);
     max-width: 150px;
+    padding: 12px;
+    margin: 10px auto;
+    border: none;
+    border-radius: 25px;
+    background: linear-gradient(135deg, #007bff, #00c4ff);
+    color: #fff;
+    font-size: 1em;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.settings .modern-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.6);
+}
+
+.settings .logout-btn {
+    background: linear-gradient(135deg, #dc3545, #ff6b6b);
+}
+
+.settings .logout-btn:hover {
+    box-shadow: 0 6px 20px rgba(220, 53, 69, 0.6);
 }
 
 .hidden {
