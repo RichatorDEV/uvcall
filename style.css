@@ -92,7 +92,7 @@ h2, h3 {
     margin: 8px 4px;
     border: none;
     border-radius: 4px;
-    background: #1a73e8;
+    background: linear-gradient(to right, #1a73e8, #1557b0);
     color: #fff;
     font-size: 1em;
     cursor: pointer;
@@ -100,19 +100,48 @@ h2, h3 {
 }
 
 .form button:hover, .controls button:hover {
-    background: #1557b0;
+    background: linear-gradient(to right, #1557b0, #0d47a1);
 }
 
-#call-btn { background: #34a853; }
-#call-btn:hover { background: #2e8b47; }
-#hang-btn { background: #ea4335; }
-#hang-btn:hover { background: #c5221f; }
-#camera-btn { background: #fbbc04; }
-#camera-btn:hover { background: #e0a800; }
-#add-user-btn { background: #4285f4; }
-#add-user-btn:hover { background: #3267d6; }
-#screen-share-btn { background: #673ab7; }
-#screen-share-btn:hover { background: #512da8; }
+#call-btn {
+    background: linear-gradient(to right, #34a853, #2e8b47);
+}
+
+#call-btn:hover {
+    background: linear-gradient(to right, #2e8b47, #276738);
+}
+
+#hang-btn {
+    background: linear-gradient(to right, #ea4335, #c5221f);
+}
+
+#hang-btn:hover {
+    background: linear-gradient(to right, #c5221f, #b71c1c);
+}
+
+#camera-btn {
+    background: linear-gradient(to right, #fbbc04, #e0a800);
+}
+
+#camera-btn:hover {
+    background: linear-gradient(to right, #e0a800, #c79100);
+}
+
+#add-user-btn {
+    background: linear-gradient(to right, #4285f4, #3267d6);
+}
+
+#add-user-btn:hover {
+    background: linear-gradient(to right, #3267d6, #2557b0);
+}
+
+#screen-share-btn {
+    background: linear-gradient(to right, #673ab7, #512da8);
+}
+
+#screen-share-btn:hover {
+    background: linear-gradient(to right, #512da8, #4527a0);
+}
 
 .switch {
     cursor: pointer;
@@ -143,7 +172,7 @@ h2, h3 {
     margin: 0;
     width: 100%;
     min-height: 0;
-    max-height: calc(100vh - 200px); /* Ajusta según header y controls */
+    max-height: calc(100vh - 200px);
     overflow: hidden;
 }
 
@@ -301,7 +330,7 @@ video {
     margin: 8px 4px;
     border: none;
     border-radius: 4px;
-    background: #1a73e8;
+    background: linear-gradient(to right, #1a73e8, #1557b0);
     color: #fff;
     font-size: 1em;
     cursor: pointer;
@@ -309,15 +338,15 @@ video {
 }
 
 .settings .modern-btn:hover {
-    background: #1557b0;
+    background: linear-gradient(to right, #1557b0, #0d47a1);
 }
 
 .settings .logout-btn {
-    background: #ea4335;
+    background: linear-gradient(to right, #ea4335, #c5221f);
 }
 
 .settings .logout-btn:hover {
-    background: #c5221f;
+    background: linear-gradient(to right, #c5221f, #b71c1c);
 }
 
 .hidden {
@@ -366,19 +395,17 @@ video {
 }
 
 .modal-content button:first-child {
-    background: #34a853;
-    color: #fff;
+    background: linear-gradient(to right, #34a853, #2e8b47);
 }
 
 .modal-content button:first-child:hover {
-    background: #2e8b47;
+    background: linear-gradient(to right, #2e8b47, #276738);
 }
 
 .modal-content button:last-child {
-    background: #ea4335;
-    color: #fff;
+    background: linear-gradient(to right, #ea4335, #c5221f);
 }
 
 .modal-content button:last-child:hover {
-    background: #c5221f;
+    background: linear-gradient(to right, #c5221f, #b71c1c);
 }
