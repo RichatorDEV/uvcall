@@ -1,29 +1,28 @@
 body {
     font-family: 'Roboto', sans-serif;
-    background: #202124;
+    background: #f5f5f5;
     margin: 0;
     display: flex;
-    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     min-height: 100vh;
-    color: #fff;
-    overflow: hidden;
+    color: #202124;
+    overflow: auto;
 }
 
-.auth-section {
+.container {
     background: #fff;
     border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     padding: 20px;
     width: 90%;
-    max-width: 400px;
+    max-width: 1200px;
     text-align: center;
-    margin: auto;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-
-.call-section {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    min-height: 90vh;
 }
 
 header {
@@ -31,33 +30,34 @@ header {
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
-    background: #303134;
+    border-bottom: 1px solid #dadce0;
     flex-shrink: 0;
 }
 
 header h1 {
     font-size: 1.5em;
     margin: 0;
+    color: #202124;
 }
 
 header p {
     margin: 0;
     font-size: 1em;
-    color: #bdc1c6;
+    color: #5f6368;
 }
 
 #settings-btn {
     background: none;
     border: none;
     font-size: 1.2em;
-    color: #bdc1c6;
+    color: #5f6368;
     cursor: pointer;
     padding: 5px;
     transition: color 0.3s;
 }
 
 #settings-btn:hover {
-    color: #8ab4f8;
+    color: #1a73e8;
 }
 
 h1 {
@@ -83,7 +83,7 @@ h2, h3 {
 }
 
 .form input:focus, .controls input:focus {
-    border-color: #8ab4f8;
+    border-color: #1a73e8;
     outline: none;
 }
 
@@ -92,15 +92,15 @@ h2, h3 {
     margin: 8px 4px;
     border: none;
     border-radius: 4px;
-    background: #8ab4f8;
-    color: #202124;
+    background: #1a73e8;
+    color: #fff;
     font-size: 1em;
     cursor: pointer;
     transition: background 0.3s;
 }
 
 .form button:hover, .controls button:hover {
-    background: #669df6;
+    background: #1557b0;
 }
 
 #call-btn { background: #34a853; }
@@ -116,19 +116,19 @@ h2, h3 {
 
 .switch {
     cursor: pointer;
-    color: #8ab4f8;
+    color: #1a73e8;
     margin-top: 10px;
     transition: color 0.3s;
 }
 
 .switch:hover {
-    color: #669df6;
+    color: #1557b0;
 }
 
 .status {
     margin-top: 8px;
     font-size: 0.9em;
-    color: #ea4335;
+    color: #d93025;
 }
 
 .status.success {
@@ -143,7 +143,7 @@ h2, h3 {
     padding: 0;
     margin: 0;
     width: 100%;
-    height: calc(100vh - 60px - 60px); /* Resta header y controles */
+    min-height: 0; /* Permite que se ajuste dentro del contenedor */
 }
 
 .video-wrapper {
@@ -156,14 +156,14 @@ h2, h3 {
 }
 
 .remote-placeholder {
-    background: #303134;
+    background: #e8eaed;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .video-placeholder {
-    color: #bdc1c6;
+    color: #5f6368;
     font-size: 1em;
     text-align: center;
     padding: 20px;
@@ -204,7 +204,8 @@ video {
     align-items: center;
     flex-wrap: wrap;
     padding: 10px;
-    background: #303134;
+    background: #fff;
+    border-top: 1px solid #dadce0;
     flex-shrink: 0;
     z-index: 10;
 }
@@ -212,36 +213,38 @@ video {
 .controls input {
     max-width: 200px;
     margin: 0 8px;
-    background: #fff;
-    color: #202124;
 }
 
 .settings {
-    margin: 20px;
+    position: absolute;
+    top: 60px; /* Debajo del header */
+    right: 20px;
+    width: 300px;
+    max-height: 400px;
     padding: 15px;
-    background: #303134;
+    background: #fff;
     border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+    overflow-y: auto;
 }
 
 .settings input[type="file"] {
     width: calc(100% - 20px);
     margin: 8px 0;
-    color: #fff;
 }
 
 .settings select {
     width: calc(100% - 20px);
     padding: 10px;
     margin: 8px 0;
-    border: 1px solid #5f6368;
+    border: 1px solid #dadce0;
     border-radius: 4px;
     font-size: 1em;
-    background: #202124;
-    color: #fff;
 }
 
 .settings select:focus {
-    border-color: #8ab4f8;
+    border-color: #1a73e8;
     outline: none;
 }
 
@@ -250,15 +253,15 @@ video {
     margin: 8px 4px;
     border: none;
     border-radius: 4px;
-    background: #8ab4f8;
-    color: #202124;
+    background: #1a73e8;
+    color: #fff;
     font-size: 1em;
     cursor: pointer;
     transition: background 0.3s;
 }
 
 .settings .modern-btn:hover {
-    background: #669df6;
+    background: #1557b0;
 }
 
 .settings .logout-btn {
@@ -287,13 +290,13 @@ video {
 }
 
 .modal-content {
-    background: #303134;
+    background: #fff;
     padding: 20px;
     border-radius: 8px;
     text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     max-width: 400px;
     width: 90%;
-    color: #fff;
 }
 
 .modal-content h2 {
