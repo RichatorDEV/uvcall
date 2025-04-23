@@ -1,6 +1,6 @@
 body {
     font-family: 'Roboto', sans-serif;
-    background: #f5f5f5;
+    background: linear-gradient(to bottom, #1a73e8, #1557b0);
     margin: 0;
     display: flex;
     justify-content: center;
@@ -11,9 +11,9 @@ body {
 }
 
 .container {
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(to bottom, #e8f0fe, #ffffff);
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     padding: 20px;
     width: 90%;
     max-width: 1200px;
@@ -226,6 +226,7 @@ h2, h3 {
     justify-content: center;
     max-height: 100%;
     max-width: 100%;
+    border-radius: 8px;
 }
 
 .remote-placeholder {
@@ -235,6 +236,7 @@ h2, h3 {
     justify-content: center;
     max-height: 100%;
     max-width: 100%;
+    border-radius: 8px;
 }
 
 .video-placeholder {
@@ -261,6 +263,7 @@ video {
     object-fit: contain;
     max-height: 100%;
     max-width: 100%;
+    border-radius: 8px;
 }
 
 .video-off-text {
@@ -281,7 +284,7 @@ video {
     align-items: center;
     flex-wrap: wrap;
     padding: 10px;
-    background: #fff;
+    background: transparent;
     border-top: 1px solid #dadce0;
     flex-shrink: 0;
     z-index: 10;
