@@ -234,7 +234,12 @@ async function addUserToCall() {
         pc.ontrack = (event) => {
             console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
             addRemoteVideo(callUsername, event.streams[0]);
-            socket.emit('notify-new-user', { newUser: callUsername, to: Object.keys(peerConnections).filter(u => u !== callUsername) });
+            // Notificar a otros usuarios (excepto el nuevo) para que conecten con él
+            socket.emit('notify-new-user', { 
+                newUser: callUsername, 
+                to: Object.keys(peerConnections).filter(u => u !== callUsername),
+                from: document.getElementById('current-user').textContent 
+            });
         };
         pc.onicecandidate = (event) => {
             if (event.candidate) {
@@ -295,14 +300,14 @@ function addRemoteVideo(username, stream) {
     updateVideoGrid();
 }
 
-socket.on('notify-new-user', async ({ newUser }) => {
+socket.on('notify-new-user', async ({ newUser, from }) => {
     if (!peerConnections[newUser] && Object.keys(peerConnections).length < MAX_PARTICIPANTS - 1) {
         try {
             if (!localStream) {
                 await initializeLocalStream();
             }
             const pc = new RTCPeerConnection(config);
-            peerConnections[newUser] = { pc, caller: null };
+            peerConnections[newUser] = { pc, caller: from };
             localStream.getTracks().forEach(track => {
                 pc.addTrack(track, localStream);
                 console.log(`Track añadido a ${newUser}:`, track);
