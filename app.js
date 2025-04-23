@@ -49,21 +49,16 @@ async function register() {
     }
 
     regStatus.textContent = 'Registrando...';
-    try {
-        const res = await fetch(`${SERVER_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-        regStatus.textContent = data.message || data.error;
-        if (res.ok) {
-            regStatus.classList.add('success');
-            setTimeout(() => showLogin(), 1000);
-        }
-    } catch (error) {
-        console.error('Error en register:', error);
-        regStatus.textContent = 'Error al conectar con el servidor';
+    const res = await fetch(`${SERVER_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    regStatus.textContent = data.message || data.error;
+    if (res.ok) {
+        regStatus.classList.add('success');
+        setTimeout(() => showLogin(), 1000);
     }
 }
 
@@ -78,88 +73,68 @@ async function login() {
     }
 
     loginStatus.textContent = 'Iniciando sesión...';
-    try {
-        const res = await fetch(`${SERVER_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-        loginStatus.textContent = data.message || data.error;
-        if (res.ok) {
-            loginStatus.classList.add('success');
-            document.getElementById('current-user').textContent = username;
-            isLoggedIn = true;
-            localStorage.setItem('username', username);
-            socket.emit('join', username);
-            setTimeout(async () => {
-                showCallSection();
-                await loadRingtone();
-                await populateCameraOptions();
-            }, 1000);
-        }
-    } catch (error) {
-        console.error('Error en login:', error);
-        loginStatus.textContent = 'Error al conectar con el servidor';
+    const res = await fetch(`${SERVER_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    loginStatus.textContent = data.message || data.error;
+    if (res.ok) {
+        loginStatus.classList.add('success');
+        document.getElementById('current-user').textContent = username;
+        isLoggedIn = true;
+        localStorage.setItem('username', username);
+        socket.emit('join', username);
+        setTimeout(async () => {
+            showCallSection();
+            await loadRingtone();
+            await populateCameraOptions();
+        }, 1000);
     }
 }
 
 async function checkUserExists(username) {
-    try {
-        const res = await fetch(`${SERVER_URL}/check-user?username=${username}`);
-        const data = await res.json();
-        return data.exists;
-    } catch (error) {
-        console.error('Error en checkUserExists:', error);
-        return false;
-    }
-}
-
-async function initializeLocalStream() {
-    try {
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-        }
-        localStream = await navigator.mediaDevices.getUserMedia({ 
-            video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
-            audio: true 
-        });
-        localVideo.srcObject = localStream;
-        console.log('Stream local inicializado:', localStream.id);
-        return localStream;
-    } catch (error) {
-        console.error('Error en initializeLocalStream:', error);
-        alert('Error al acceder a la cámara o micrófono: ' + error.message);
-        throw error;
-    }
+    const res = await fetch(`${SERVER_URL}/check-user?username=${username}`);
+    const data = await res.json();
+    return data.exists;
 }
 
 async function startCall() {
     const callUsername = callUsernameInput.value.trim();
+    const callStatus = document.getElementById('call-status');
 
     if (!callUsername) {
-        alert('Ingresa un usuario a llamar.');
+        callStatus.textContent = 'Estado: Ingresa un usuario a llamar.';
         return;
     }
 
     const userExists = await checkUserExists(callUsername);
     if (!userExists) {
-        alert('El usuario no existe.');
+        callStatus.textContent = 'Estado: El usuario no existe.';
         return;
     }
 
+    callStatus.textContent = `Estado: Solicitando llamada a ${callUsername}...`;
     try {
-        await initializeLocalStream();
+        if (!localStream) {
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
+                audio: true 
+            });
+            localVideo.srcObject = localStream;
+            console.log('Stream local obtenido:', localStream);
+        }
 
         const pc = new RTCPeerConnection(config);
-        peerConnections[callUsername] = { pc, caller: null };
+        peerConnections[callUsername] = pc;
         localStream.getTracks().forEach(track => {
             pc.addTrack(track, localStream);
-            console.log(`Track añadido a ${callUsername}:`, track.kind, track.id);
+            console.log(`Track añadido a ${callUsername}:`, track);
         });
 
         pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams[0].id);
+            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
             addRemoteVideo(callUsername, event.streams[0]);
         };
         pc.onicecandidate = (event) => {
@@ -168,18 +143,11 @@ async function startCall() {
                 console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
             }
         };
-        pc.onconnectionstatechange = () => {
-            console.log(`Estado de conexión para ${callUsername}: ${pc.connectionState}`);
-            if (pc.connectionState === 'failed') {
-                alert('Fallo en la conexión con ' + callUsername);
-                hangUp();
-            }
-        };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('offer', { offer, to: callUsername });
-        console.log(`Offer enviado a ${callUsername}:`, offer.sdp.substring(0, 50) + '...');
+        console.log(`Offer enviado a ${callUsername}:`, offer);
 
         localUsername.textContent = document.getElementById('current-user').textContent;
         callBtn.classList.add('hidden');
@@ -188,57 +156,49 @@ async function startCall() {
         cameraBtn.classList.remove('hidden');
         screenShareBtn.classList.remove('hidden');
         callUsernameInput.value = '';
-        updateVideoGrid();
     } catch (error) {
         console.error('Error en startCall:', error);
-        alert('Error al iniciar la llamada: ' + error.message);
+        callStatus.textContent = 'Estado: Error al iniciar la llamada';
     }
 }
 
 async function addUserToCall() {
     const callUsername = callUsernameInput.value.trim();
+    const callStatus = document.getElementById('call-status');
 
     if (!callUsername) {
-        alert('Ingresa un usuario a añadir.');
+        callStatus.textContent = 'Estado: Ingresa un usuario a añadir.';
         return;
     }
 
     const userExists = await checkUserExists(callUsername);
     if (!userExists) {
-        alert('El usuario no existe.');
+        callStatus.textContent = 'Estado: El usuario no existe.';
         return;
     }
 
     if (peerConnections[callUsername]) {
-        alert('El usuario ya está en la llamada.');
+        callStatus.textContent = 'Estado: El usuario ya está en la llamada.';
         return;
     }
 
     if (Object.keys(peerConnections).length >= MAX_PARTICIPANTS - 1) {
-        alert('Límite de 4 participantes alcanzado.');
+        callStatus.textContent = 'Estado: Límite de 4 participantes alcanzado.';
         return;
     }
 
+    callStatus.textContent = `Estado: Añadiendo a ${callUsername} a la llamada...`;
     try {
-        if (!localStream) {
-            await initializeLocalStream();
-        }
-
         const pc = new RTCPeerConnection(config);
-        peerConnections[callUsername] = { pc, caller: document.getElementById('current-user').textContent };
+        peerConnections[callUsername] = pc;
         localStream.getTracks().forEach(track => {
             pc.addTrack(track, localStream);
-            console.log(`Track añadido a ${callUsername}:`, track.kind, track.id);
+            console.log(`Track añadido a ${callUsername}:`, track);
         });
 
         pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams[0].id);
+            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
             addRemoteVideo(callUsername, event.streams[0]);
-            socket.emit('notify-new-user', { 
-                newUser: callUsername, 
-                to: Object.keys(peerConnections).filter(u => u !== callUsername),
-                from: document.getElementById('current-user').textContent 
-            });
         };
         pc.onicecandidate = (event) => {
             if (event.candidate) {
@@ -246,23 +206,15 @@ async function addUserToCall() {
                 console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
             }
         };
-        pc.onconnectionstatechange = () => {
-            console.log(`Estado de conexión para ${callUsername}: ${pc.connectionState}`);
-            if (pc.connectionState === 'failed') {
-                alert('Fallo en la conexión con ' + callUsername);
-                hangUp();
-            }
-        };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('offer', { offer, to: callUsername });
-        console.log(`Offer enviado a ${callUsername}:`, offer.sdp.substring(0, 50) + '...');
+        console.log(`Offer enviado a ${callUsername}:`, offer);
         callUsernameInput.value = '';
-        updateVideoGrid();
     } catch (error) {
         console.error('Error en addUserToCall:', error);
-        alert('Error al añadir usuario: ' + error.message);
+        callStatus.textContent = 'Estado: Error al añadir usuario';
     }
 }
 
@@ -270,13 +222,6 @@ function addRemoteVideo(username, stream) {
     const placeholder = document.getElementById('remote-placeholder');
     if (Object.keys(peerConnections).length === 1 && placeholder) {
         placeholder.remove();
-    }
-
-    const currentUser = document.getElementById('current-user').textContent;
-    const peer = peerConnections[username];
-    if (peer && peer.caller && peer.caller !== currentUser) {
-        console.log(`No se muestra video de ${username} porque no es mi caller`);
-        return;
     }
 
     const existingVideo = document.getElementById(`remoteVideo-${username}`);
@@ -291,107 +236,37 @@ function addRemoteVideo(username, stream) {
         videoContainer.appendChild(wrapper);
         const video = document.getElementById(`remoteVideo-${username}`);
         video.srcObject = stream;
-        console.log(`Video remoto añadido para ${username}, stream ID:`, stream.id);
+        console.log(`Video remoto añadido para ${username}, stream:`, stream);
     } else {
         existingVideo.srcObject = stream;
-        console.log(`Stream actualizado para ${username}, stream ID:`, stream.id);
+        console.log(`Stream actualizado para ${username}:`, stream);
     }
-    updateVideoGrid();
+    updateCallStatus();
 }
 
-socket.on('notify-new-user', async ({ newUser, from }) => {
-    if (!peerConnections[newUser] && Object.keys(peerConnections).length < MAX_PARTICIPANTS - 1) {
-        try {
-            if (!localStream) {
-                await initializeLocalStream();
-            }
-            const pc = new RTCPeerConnection(config);
-            peerConnections[newUser] = { pc, caller: from };
-            localStream.getTracks().forEach(track => {
-                pc.addTrack(track, localStream);
-                console.log(`Track añadido a ${newUser}:`, track.kind, track.id);
-            });
-
-            pc.ontrack = (event) => {
-                console.log(`Evento ontrack recibido de ${newUser}:`, event.streams[0].id);
-                addRemoteVideo(newUser, event.streams[0]);
-            };
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('ice-candidate', { candidate: event.candidate, to: newUser });
-                    console.log(`ICE candidate enviado a ${newUser}:`, event.candidate);
-                }
-            };
-            pc.onconnectionstatechange = () => {
-                console.log(`Estado de conexión para ${newUser}: ${pc.connectionState}`);
-                if (pc.connectionState === 'failed') {
-                    alert('Fallo en la conexión con ' + newUser);
-                    hangUp();
-                }
-            };
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socket.emit('offer', { offer, to: newUser });
-            console.log(`Offer enviado a ${newUser}:`, offer.sdp.substring(0, 50) + '...');
-            updateVideoGrid();
-        } catch (error) {
-            console.error('Error en notify-new-user:', error);
-            alert('Error al conectar con nuevo usuario: ' + error.message);
-        }
-    }
-});
-
-function removeRemoteVideo(username) {
-    const wrapper = document.querySelector(`#remoteVideo-${username}`)?.parentElement;
-    if (wrapper) {
-        wrapper.remove();
-        console.log(`Video remoto eliminado para ${username}`);
-    }
-    if (Object.keys(peerConnections).length === 0 && !document.getElementById('remote-placeholder')) {
-        const placeholder = document.createElement('div');
-        placeholder.className = 'video-wrapper remote-placeholder';
-        placeholder.id = 'remote-placeholder';
-        placeholder.innerHTML = `
-            <span class="username-label">Esperando participante</span>
-            <div class="video-placeholder">Sin video</div>
-        `;
-        videoContainer.appendChild(placeholder);
-    }
-    updateVideoGrid();
-}
-
-function updateVideoGrid() {
-    const participantCount = Object.keys(peerConnections).length + 1;
-    videoContainer.className = 'video-grid';
-    if (participantCount === 1) {
-        videoContainer.classList.add('one');
-    } else if (participantCount === 2) {
-        videoContainer.classList.add('two');
-    } else if (participantCount === 3) {
-        videoContainer.classList.add('three');
-    } else if (participantCount === 4) {
-        videoContainer.classList.add('four');
-    }
-    console.log(`Cuadrícula actualizada para ${participantCount} participantes`);
+function updateCallStatus() {
+    const participants = Object.keys(peerConnections).join(', ');
+    document.getElementById('call-status').textContent = participants 
+        ? `Estado: En llamada con ${participants}` 
+        : 'Estado: Listo';
 }
 
 function hangUp() {
     Object.keys(peerConnections).forEach(username => {
-        const { pc } = peerConnections[username];
+        const pc = peerConnections[username];
         if (pc) {
             socket.emit('hangup', { to: username });
             pc.close();
-            removeRemoteVideo(username);
+            const wrapper = document.querySelector(`#remoteVideo-${username}`);
+            if (wrapper) wrapper.parentElement.remove();
         }
     });
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-    }
+    if (localStream) localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
     localVideo.srcObject = null;
     localVideoOff.classList.add('hidden');
     localUsername.textContent = '';
+    document.getElementById('call-status').textContent = 'Estado: Listo';
     callBtn.classList.remove('hidden');
     addUserBtn.classList.add('hidden');
     hangBtn.classList.add('hidden');
@@ -406,37 +281,52 @@ function hangUp() {
     isScreenSharing = false;
     cameraBtn.textContent = 'Apagar Cámara';
     screenShareBtn.textContent = 'Compartir Pantalla';
-    updateVideoGrid();
+    if (!document.getElementById('remote-placeholder')) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'video-wrapper remote-placeholder';
+        placeholder.id = 'remote-placeholder';
+        placeholder.innerHTML = `
+            <span class="username-label">Esperando participante</span>
+            <div class="video-placeholder">Sin video</div>
+        `;
+        videoContainer.appendChild(placeholder);
+    }
 }
 
 socket.on('offer', async ({ offer, from }) => {
     if (isLoggedIn && !callSection.classList.contains('hidden')) {
         currentCaller = from;
         currentOffer = offer;
-        callerName.textContent = `${from} está llamándote`;
+        callerName.textContent = `${from} está llamándote.`;
         callRequestModal.classList.remove('hidden');
         ringtone.currentTime = 0;
         ringtone.play().catch(error => console.log('Error al reproducir tono:', error));
-        console.log(`Oferta recibida de ${from}:`, offer.sdp.substring(0, 50) + '...');
     }
 });
 
 async function acceptCall() {
     callRequestModal.classList.add('hidden');
     stopRingtone();
+    const callStatus = document.getElementById('call-status');
 
     try {
-        await initializeLocalStream();
-
+        if (!localStream) {
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
+                audio: true 
+            });
+            localVideo.srcObject = localStream;
+            console.log('Stream local obtenido al aceptar:', localStream);
+        }
         const pc = new RTCPeerConnection(config);
-        peerConnections[currentCaller] = { pc, caller: currentCaller };
+        peerConnections[currentCaller] = pc;
         localStream.getTracks().forEach(track => {
             pc.addTrack(track, localStream);
-            console.log(`Track añadido a ${currentCaller}:`, track.kind, track.id);
+            console.log(`Track añadido a ${currentCaller}:`, track);
         });
 
         pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${currentCaller}:`, event.streams[0].id);
+            console.log(`Evento ontrack recibido de ${currentCaller}:`, event.streams);
             addRemoteVideo(currentCaller, event.streams[0]);
         };
         pc.onicecandidate = (event) => {
@@ -445,20 +335,13 @@ async function acceptCall() {
                 console.log(`ICE candidate enviado a ${currentCaller}:`, event.candidate);
             }
         };
-        pc.onconnectionstatechange = () => {
-            console.log(`Estado de conexión para ${currentCaller}: ${pc.connectionState}`);
-            if (pc.connectionState === 'failed') {
-                alert('Fallo en la conexión con ' + currentCaller);
-                hangUp();
-            }
-        };
 
         await pc.setRemoteDescription(new RTCSessionDescription(currentOffer));
-        console.log(`Remote description seteada para ${currentCaller}:`, currentOffer.sdp.substring(0, 50) + '...');
+        console.log(`Remote description seteada para ${currentCaller}:`, currentOffer);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         socket.emit('answer', { answer, to: currentCaller });
-        console.log(`Answer enviado a ${currentCaller}:`, answer.sdp.substring(0, 50) + '...');
+        console.log(`Answer enviado a ${currentCaller}:`, answer);
 
         localUsername.textContent = document.getElementById('current-user').textContent;
         callBtn.classList.add('hidden');
@@ -466,10 +349,10 @@ async function acceptCall() {
         hangBtn.classList.remove('hidden');
         cameraBtn.classList.remove('hidden');
         screenShareBtn.classList.remove('hidden');
-        updateVideoGrid();
+        updateCallStatus();
     } catch (error) {
         console.error('Error en acceptCall:', error);
-        alert('Error al aceptar la llamada: ' + error.message);
+        callStatus.textContent = 'Estado: Error al aceptar la llamada';
     }
 }
 
@@ -477,55 +360,53 @@ function rejectCall() {
     callRequestModal.classList.add('hidden');
     stopRingtone();
     socket.emit('reject', { to: currentCaller });
+    document.getElementById('call-status').textContent = 'Estado: Llamada rechazada';
     currentCaller = null;
     currentOffer = null;
-    console.log('Llamada rechazada');
 }
 
 socket.on('answer', async ({ answer, from }) => {
-    const peer = peerConnections[from];
-    if (peer && peer.pc) {
+    const pc = peerConnections[from];
+    if (pc) {
         try {
-            await peer.pc.setRemoteDescription(new RTCSessionDescription(answer));
-            console.log(`Remote description seteada para ${from} desde answer:`, answer.sdp.substring(0, 50) + '...');
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log(`Remote description seteada para ${from} desde answer:`, answer);
+            updateCallStatus();
         } catch (error) {
             console.error('Error en setRemoteDescription:', error);
-            alert('Error al procesar la respuesta: ' + error.message);
         }
-    } else {
-        console.error(`No se encontró peerConnection para ${from}`);
     }
 });
 
 socket.on('ice-candidate', async ({ candidate, from }) => {
-    const peer = peerConnections[from];
-    if (peer && peer.pc) {
+    const pc = peerConnections[from];
+    if (pc) {
         try {
-            await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
             console.log(`ICE candidate recibido y añadido de ${from}:`, candidate);
         } catch (error) {
             console.error('Error al añadir ICE candidate:', error);
         }
-    } else {
-        console.error(`No se encontró peerConnection para ${from}`);
     }
 });
 
 socket.on('reject', () => {
     hangUp();
-    console.log('Llamada rechazada por el otro usuario');
+    document.getElementById('call-status').textContent = 'Estado: La llamada fue rechazada';
 });
 
 socket.on('hangup', ({ from }) => {
-    const peer = peerConnections[from];
-    if (peer && peer.pc) {
-        peer.pc.close();
+    const pc = peerConnections[from];
+    if (pc) {
+        pc.close();
         delete peerConnections[from];
-        removeRemoteVideo(from);
+        const wrapper = document.querySelector(`#remoteVideo-${from}`);
+        if (wrapper) wrapper.parentElement.remove();
         if (Object.keys(peerConnections).length === 0) {
             hangUp();
+        } else {
+            updateCallStatus();
         }
-        console.log(`Usuario ${from} colgó`);
     }
 });
 
@@ -553,6 +434,7 @@ function showCallSection() {
     authSection.classList.add('hidden');
     callSection.classList.remove('hidden');
     callRequestModal.classList.add('hidden');
+    document.getElementById('call-status').textContent = 'Estado: Listo';
     callBtn.classList.remove('hidden');
     addUserBtn.classList.add('hidden');
     hangBtn.classList.add('hidden');
@@ -560,7 +442,6 @@ function showCallSection() {
     screenShareBtn.classList.add('hidden');
     callUsernameInput.value = '';
     localUsername.textContent = '';
-    updateVideoGrid();
 }
 
 function clearInputs(section) {
@@ -592,21 +473,16 @@ async function saveRingtone() {
     formData.append('ringtone', file);
     formData.append('username', document.getElementById('current-user').textContent);
 
-    try {
-        const res = await fetch(`${SERVER_URL}/upload-ringtone`, {
-            method: 'POST',
-            body: formData
-        });
-        const data = await res.json();
-        if (res.ok) {
-            await loadRingtone();
-            alert('Tono de llamada guardado con éxito.');
-        } else {
-            alert('Error al guardar el tono: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Error en saveRingtone:', error);
-        alert('Error al guardar el tono');
+    const res = await fetch(`${SERVER_URL}/upload-ringtone`, {
+        method: 'POST',
+        body: formData
+    });
+    const data = await res.json();
+    if (res.ok) {
+        await loadRingtone();
+        alert('Tono de llamada guardado con éxito.');
+    } else {
+        alert('Error al guardar el tono: ' + data.error);
     }
 }
 
@@ -625,7 +501,6 @@ async function loadRingtone() {
             }
             await ringtone.load();
             ringtone.loop = false;
-            console.log('Tono de llamada cargado');
         }
     } catch (error) {
         console.log('Error al cargar el tono:', error);
@@ -657,7 +532,6 @@ async function populateCameraOptions() {
         if (videoDevices.length > 0 && !selectedCameraId) {
             selectedCameraId = videoDevices[0].deviceId;
         }
-        console.log('Opciones de cámara pobladas:', videoDevices);
     } catch (error) {
         console.error('Error al enumerar cámaras:', error);
     }
@@ -667,27 +541,20 @@ async function changeCamera() {
     selectedCameraId = cameraSelect.value;
     if (localStream && !isScreenSharing) {
         localStream.getTracks().forEach(track => track.stop());
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { deviceId: { exact: selectedCameraId } }, 
-                audio: true 
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { deviceId: { exact: selectedCameraId } }, 
+            audio: true 
+        });
+        localVideo.srcObject = localStream;
+        Object.values(peerConnections).forEach(pc => {
+            const senders = pc.getSenders();
+            const videoTrack = localStream.getVideoTracks()[0];
+            senders.forEach(sender => {
+                if (sender.track.kind === 'video') {
+                    sender.replaceTrack(videoTrack);
+                }
             });
-            localVideo.srcObject = localStream;
-            Object.values(peerConnections).forEach(peer => {
-                const senders = peer.pc.getSenders();
-                const videoTrack = localStream.getVideoTracks()[0];
-                senders.forEach(sender => {
-                    if (sender.track.kind === 'video') {
-                        sender.replaceTrack(videoTrack);
-                        console.log(`Track de video reemplazado para ${peer.pc}:`, videoTrack.id);
-                    }
-                });
-            });
-            console.log('Cámara cambiada a:', selectedCameraId);
-        } catch (error) {
-            console.error('Error en changeCamera:', error);
-            alert('Error al cambiar la cámara');
-        }
+        });
     }
 }
 
@@ -699,12 +566,12 @@ function toggleCamera() {
     videoTrack.enabled = cameraOn;
     localVideoOff.classList.toggle('hidden', cameraOn);
     cameraBtn.textContent = cameraOn ? 'Apagar Cámara' : 'Encender Cámara';
-    console.log('Cámara toggled:', cameraOn);
 }
 
 async function toggleScreenShare() {
     try {
         if (!isScreenSharing) {
+            // Comenzar a compartir pantalla
             localStream.getTracks().forEach(track => track.stop());
             localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
@@ -713,22 +580,23 @@ async function toggleScreenShare() {
             localVideoOff.classList.add('hidden');
             cameraOn = true;
 
-            Object.values(peerConnections).forEach(peer => {
-                const senders = peer.pc.getSenders();
+            // Actualizar tracks en todas las conexiones
+            Object.values(peerConnections).forEach(pc => {
+                const senders = pc.getSenders();
                 const videoTrack = localStream.getVideoTracks()[0];
                 senders.forEach(sender => {
                     if (sender.track.kind === 'video') {
                         sender.replaceTrack(videoTrack);
-                        console.log(`Track de pantalla reemplazado para ${peer.pc}:`, videoTrack.id);
                     }
                 });
             });
 
+            // Detener pantalla si el usuario cierra manualmente
             localStream.getVideoTracks()[0].onended = () => {
-                toggleScreenShare();
+                toggleScreenShare(); // Volver a cámara cuando se detiene
             };
-            console.log('Pantalla compartida iniciada');
         } else {
+            // Volver a la cámara
             localStream.getTracks().forEach(track => track.stop());
             localStream = await navigator.mediaDevices.getUserMedia({ 
                 video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
@@ -739,22 +607,21 @@ async function toggleScreenShare() {
             screenShareBtn.textContent = 'Compartir Pantalla';
             localVideoOff.classList.toggle('hidden', !cameraOn);
 
-            Object.values(peerConnections).forEach(peer => {
-                const senders = peer.pc.getSenders();
+            // Actualizar tracks en todas las conexiones
+            Object.values(peerConnections).forEach(pc => {
+                const senders = pc.getSenders();
                 const videoTrack = localStream.getVideoTracks()[0];
                 senders.forEach(sender => {
                     if (sender.track.kind === 'video') {
                         sender.replaceTrack(videoTrack);
-                        console.log(`Track de video reemplazado para ${peer.pc}:`, videoTrack.id);
                     }
                 });
             });
-            console.log('Vuelto a cámara');
         }
-        updateVideoGrid();
+        console.log('Screen share toggled:', isScreenSharing);
     } catch (error) {
         console.error('Error en toggleScreenShare:', error);
-        alert('Error al compartir pantalla: ' + error.message);
+        document.getElementById('call-status').textContent = 'Estado: Error al compartir pantalla';
     }
 }
 
