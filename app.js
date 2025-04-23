@@ -115,6 +115,25 @@ async function checkUserExists(username) {
     }
 }
 
+async function initializeLocalStream() {
+    try {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
+            audio: true 
+        });
+        localVideo.srcObject = localStream;
+        console.log('Stream local inicializado:', localStream);
+        return localStream;
+    } catch (error) {
+        console.error('Error en initializeLocalStream:', error);
+        alert('Error al acceder a la cámara o micrófono: ' + error.message);
+        throw error;
+    }
+}
+
 async function startCall() {
     const callUsername = callUsernameInput.value.trim();
 
@@ -130,14 +149,7 @@ async function startCall() {
     }
 
     try {
-        if (!localStream) {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
-                audio: true 
-            });
-            localVideo.srcObject = localStream;
-            console.log('Stream local obtenido:', localStream);
-        }
+        await initializeLocalStream();
 
         const pc = new RTCPeerConnection(config);
         peerConnections[callUsername] = { pc, caller: null };
@@ -208,6 +220,10 @@ async function addUserToCall() {
     }
 
     try {
+        if (!localStream) {
+            await initializeLocalStream();
+        }
+
         const pc = new RTCPeerConnection(config);
         peerConnections[callUsername] = { pc, caller: document.getElementById('current-user').textContent };
         localStream.getTracks().forEach(track => {
@@ -218,6 +234,7 @@ async function addUserToCall() {
         pc.ontrack = (event) => {
             console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
             addRemoteVideo(callUsername, event.streams[0]);
+            socket.emit('notify-new-user', { newUser: callUsername, to: Object.keys(peerConnections).filter(u => u !== callUsername) });
         };
         pc.onicecandidate = (event) => {
             if (event.candidate) {
@@ -277,6 +294,49 @@ function addRemoteVideo(username, stream) {
     }
     updateVideoGrid();
 }
+
+socket.on('notify-new-user', async ({ newUser }) => {
+    if (!peerConnections[newUser] && Object.keys(peerConnections).length < MAX_PARTICIPANTS - 1) {
+        try {
+            if (!localStream) {
+                await initializeLocalStream();
+            }
+            const pc = new RTCPeerConnection(config);
+            peerConnections[newUser] = { pc, caller: null };
+            localStream.getTracks().forEach(track => {
+                pc.addTrack(track, localStream);
+                console.log(`Track añadido a ${newUser}:`, track);
+            });
+
+            pc.ontrack = (event) => {
+                console.log(`Evento ontrack recibido de ${newUser}:`, event.streams);
+                addRemoteVideo(newUser, event.streams[0]);
+            };
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('ice-candidate', { candidate: event.candidate, to: newUser });
+                    console.log(`ICE candidate enviado a ${newUser}:`, event.candidate);
+                }
+            };
+            pc.onconnectionstatechange = () => {
+                console.log(`Estado de conexión para ${newUser}: ${pc.connectionState}`);
+                if (pc.connectionState === 'failed') {
+                    alert('Fallo en la conexión con ' + newUser);
+                    hangUp();
+                }
+            };
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket.emit('offer', { offer, to: newUser });
+            console.log(`Offer enviado a ${newUser}:`, offer);
+            updateVideoGrid();
+        } catch (error) {
+            console.error('Error en notify-new-user:', error);
+            alert('Error al conectar con nuevo usuario: ' + error.message);
+        }
+    }
+});
 
 function removeRemoteVideo(username) {
     const wrapper = document.querySelector(`#remoteVideo-${username}`)?.parentElement;
@@ -362,14 +422,8 @@ async function acceptCall() {
     stopRingtone();
 
     try {
-        if (!localStream) {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
-                audio: true 
-            });
-            localVideo.srcObject = localStream;
-            console.log('Stream local obtenido al aceptar:', localStream);
-        }
+        await initializeLocalStream();
+
         const pc = new RTCPeerConnection(config);
         peerConnections[currentCaller] = { pc, caller: currentCaller };
         localStream.getTracks().forEach(track => {
@@ -690,6 +744,7 @@ async function toggleScreenShare() {
             });
             console.log('Vuelto a cámara');
         }
+        updateVideoGrid();
     } catch (error) {
         console.error('Error en toggleScreenShare:', error);
         alert('Error al compartir pantalla: ' + error.message);
