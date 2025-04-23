@@ -125,7 +125,7 @@ async function initializeLocalStream() {
             audio: true 
         });
         localVideo.srcObject = localStream;
-        console.log('Stream local inicializado:', localStream);
+        console.log('Stream local inicializado:', localStream.id);
         return localStream;
     } catch (error) {
         console.error('Error en initializeLocalStream:', error);
@@ -155,11 +155,11 @@ async function startCall() {
         peerConnections[callUsername] = { pc, caller: null };
         localStream.getTracks().forEach(track => {
             pc.addTrack(track, localStream);
-            console.log(`Track añadido a ${callUsername}:`, track);
+            console.log(`Track añadido a ${callUsername}:`, track.kind, track.id);
         });
 
         pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
+            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams[0].id);
             addRemoteVideo(callUsername, event.streams[0]);
         };
         pc.onicecandidate = (event) => {
@@ -179,7 +179,7 @@ async function startCall() {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('offer', { offer, to: callUsername });
-        console.log(`Offer enviado a ${callUsername}:`, offer);
+        console.log(`Offer enviado a ${callUsername}:`, offer.sdp.substring(0, 50) + '...');
 
         localUsername.textContent = document.getElementById('current-user').textContent;
         callBtn.classList.add('hidden');
@@ -228,13 +228,12 @@ async function addUserToCall() {
         peerConnections[callUsername] = { pc, caller: document.getElementById('current-user').textContent };
         localStream.getTracks().forEach(track => {
             pc.addTrack(track, localStream);
-            console.log(`Track añadido a ${callUsername}:`, track);
+            console.log(`Track añadido a ${callUsername}:`, track.kind, track.id);
         });
 
         pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
+            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams[0].id);
             addRemoteVideo(callUsername, event.streams[0]);
-            // Notificar a otros usuarios (excepto el nuevo) para que conecten con él
             socket.emit('notify-new-user', { 
                 newUser: callUsername, 
                 to: Object.keys(peerConnections).filter(u => u !== callUsername),
@@ -258,7 +257,7 @@ async function addUserToCall() {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('offer', { offer, to: callUsername });
-        console.log(`Offer enviado a ${callUsername}:`, offer);
+        console.log(`Offer enviado a ${callUsername}:`, offer.sdp.substring(0, 50) + '...');
         callUsernameInput.value = '';
         updateVideoGrid();
     } catch (error) {
@@ -292,10 +291,10 @@ function addRemoteVideo(username, stream) {
         videoContainer.appendChild(wrapper);
         const video = document.getElementById(`remoteVideo-${username}`);
         video.srcObject = stream;
-        console.log(`Video remoto añadido para ${username}, stream:`, stream);
+        console.log(`Video remoto añadido para ${username}, stream ID:`, stream.id);
     } else {
         existingVideo.srcObject = stream;
-        console.log(`Stream actualizado para ${username}:`, stream);
+        console.log(`Stream actualizado para ${username}, stream ID:`, stream.id);
     }
     updateVideoGrid();
 }
@@ -310,11 +309,11 @@ socket.on('notify-new-user', async ({ newUser, from }) => {
             peerConnections[newUser] = { pc, caller: from };
             localStream.getTracks().forEach(track => {
                 pc.addTrack(track, localStream);
-                console.log(`Track añadido a ${newUser}:`, track);
+                console.log(`Track añadido a ${newUser}:`, track.kind, track.id);
             });
 
             pc.ontrack = (event) => {
-                console.log(`Evento ontrack recibido de ${newUser}:`, event.streams);
+                console.log(`Evento ontrack recibido de ${newUser}:`, event.streams[0].id);
                 addRemoteVideo(newUser, event.streams[0]);
             };
             pc.onicecandidate = (event) => {
@@ -334,7 +333,7 @@ socket.on('notify-new-user', async ({ newUser, from }) => {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             socket.emit('offer', { offer, to: newUser });
-            console.log(`Offer enviado a ${newUser}:`, offer);
+            console.log(`Offer enviado a ${newUser}:`, offer.sdp.substring(0, 50) + '...');
             updateVideoGrid();
         } catch (error) {
             console.error('Error en notify-new-user:', error);
@@ -363,7 +362,7 @@ function removeRemoteVideo(username) {
 }
 
 function updateVideoGrid() {
-    const participantCount = Object.keys(peerConnections).length + 1; // +1 para el usuario local
+    const participantCount = Object.keys(peerConnections).length + 1;
     videoContainer.className = 'video-grid';
     if (participantCount === 1) {
         videoContainer.classList.add('one');
@@ -418,7 +417,7 @@ socket.on('offer', async ({ offer, from }) => {
         callRequestModal.classList.remove('hidden');
         ringtone.currentTime = 0;
         ringtone.play().catch(error => console.log('Error al reproducir tono:', error));
-        console.log(`Oferta recibida de ${from}:`, offer);
+        console.log(`Oferta recibida de ${from}:`, offer.sdp.substring(0, 50) + '...');
     }
 });
 
@@ -433,11 +432,11 @@ async function acceptCall() {
         peerConnections[currentCaller] = { pc, caller: currentCaller };
         localStream.getTracks().forEach(track => {
             pc.addTrack(track, localStream);
-            console.log(`Track añadido a ${currentCaller}:`, track);
+            console.log(`Track añadido a ${currentCaller}:`, track.kind, track.id);
         });
 
         pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${currentCaller}:`, event.streams);
+            console.log(`Evento ontrack recibido de ${currentCaller}:`, event.streams[0].id);
             addRemoteVideo(currentCaller, event.streams[0]);
         };
         pc.onicecandidate = (event) => {
@@ -455,11 +454,11 @@ async function acceptCall() {
         };
 
         await pc.setRemoteDescription(new RTCSessionDescription(currentOffer));
-        console.log(`Remote description seteada para ${currentCaller}:`, currentOffer);
+        console.log(`Remote description seteada para ${currentCaller}:`, currentOffer.sdp.substring(0, 50) + '...');
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         socket.emit('answer', { answer, to: currentCaller });
-        console.log(`Answer enviado a ${currentCaller}:`, answer);
+        console.log(`Answer enviado a ${currentCaller}:`, answer.sdp.substring(0, 50) + '...');
 
         localUsername.textContent = document.getElementById('current-user').textContent;
         callBtn.classList.add('hidden');
@@ -488,7 +487,7 @@ socket.on('answer', async ({ answer, from }) => {
     if (peer && peer.pc) {
         try {
             await peer.pc.setRemoteDescription(new RTCSessionDescription(answer));
-            console.log(`Remote description seteada para ${from} desde answer:`, answer);
+            console.log(`Remote description seteada para ${from} desde answer:`, answer.sdp.substring(0, 50) + '...');
         } catch (error) {
             console.error('Error en setRemoteDescription:', error);
             alert('Error al procesar la respuesta: ' + error.message);
@@ -680,6 +679,7 @@ async function changeCamera() {
                 senders.forEach(sender => {
                     if (sender.track.kind === 'video') {
                         sender.replaceTrack(videoTrack);
+                        console.log(`Track de video reemplazado para ${peer.pc}:`, videoTrack.id);
                     }
                 });
             });
@@ -719,6 +719,7 @@ async function toggleScreenShare() {
                 senders.forEach(sender => {
                     if (sender.track.kind === 'video') {
                         sender.replaceTrack(videoTrack);
+                        console.log(`Track de pantalla reemplazado para ${peer.pc}:`, videoTrack.id);
                     }
                 });
             });
@@ -744,6 +745,7 @@ async function toggleScreenShare() {
                 senders.forEach(sender => {
                     if (sender.track.kind === 'video') {
                         sender.replaceTrack(videoTrack);
+                        console.log(`Track de video reemplazado para ${peer.pc}:`, videoTrack.id);
                     }
                 });
             });
