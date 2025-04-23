@@ -49,16 +49,21 @@ async function register() {
     }
 
     regStatus.textContent = 'Registrando...';
-    const res = await fetch(`${SERVER_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    regStatus.textContent = data.message || data.error;
-    if (res.ok) {
-        regStatus.classList.add('success');
-        setTimeout(() => showLogin(), 1000);
+    try {
+        const res = await fetch(`${SERVER_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        regStatus.textContent = data.message || data.error;
+        if (res.ok) {
+            regStatus.classList.add('success');
+            setTimeout(() => showLogin(), 1000);
+        }
+    } catch (error) {
+        console.error('Error en register:', error);
+        regStatus.textContent = 'Error al conectar con el servidor';
     }
 }
 
@@ -73,31 +78,41 @@ async function login() {
     }
 
     loginStatus.textContent = 'Iniciando sesión...';
-    const res = await fetch(`${SERVER_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    loginStatus.textContent = data.message || data.error;
-    if (res.ok) {
-        loginStatus.classList.add('success');
-        document.getElementById('current-user').textContent = username;
-        isLoggedIn = true;
-        localStorage.setItem('username', username);
-        socket.emit('join', username);
-        setTimeout(async () => {
-            showCallSection();
-            await loadRingtone();
-            await populateCameraOptions();
-        }, 1000);
+    try {
+        const res = await fetch(`${SERVER_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        loginStatus.textContent = data.message || data.error;
+        if (res.ok) {
+            loginStatus.classList.add('success');
+            document.getElementById('current-user').textContent = username;
+            isLoggedIn = true;
+            localStorage.setItem('username', username);
+            socket.emit('join', username);
+            setTimeout(async () => {
+                showCallSection();
+                await loadRingtone();
+                await populateCameraOptions();
+            }, 1000);
+        }
+    } catch (error) {
+        console.error('Error en login:', error);
+        loginStatus.textContent = 'Error al conectar con el servidor';
     }
 }
 
 async function checkUserExists(username) {
-    const res = await fetch(`${SERVER_URL}/check-user?username=${username}`);
-    const data = await res.json();
-    return data.exists;
+    try {
+        const res = await fetch(`${SERVER_URL}/check-user?username=${username}`);
+        const data = await res.json();
+        return data.exists;
+    } catch (error) {
+        console.error('Error en checkUserExists:', error);
+        return false;
+    }
 }
 
 async function startCall() {
@@ -141,6 +156,13 @@ async function startCall() {
                 console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
             }
         };
+        pc.onconnectionstatechange = () => {
+            console.log(`Estado de conexión para ${callUsername}: ${pc.connectionState}`);
+            if (pc.connectionState === 'failed') {
+                alert('Fallo en la conexión con ' + callUsername);
+                hangUp();
+            }
+        };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -154,9 +176,10 @@ async function startCall() {
         cameraBtn.classList.remove('hidden');
         screenShareBtn.classList.remove('hidden');
         callUsernameInput.value = '';
+        updateVideoGrid();
     } catch (error) {
         console.error('Error en startCall:', error);
-        alert('Error al iniciar la llamada');
+        alert('Error al iniciar la llamada: ' + error.message);
     }
 }
 
@@ -202,15 +225,23 @@ async function addUserToCall() {
                 console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
             }
         };
+        pc.onconnectionstatechange = () => {
+            console.log(`Estado de conexión para ${callUsername}: ${pc.connectionState}`);
+            if (pc.connectionState === 'failed') {
+                alert('Fallo en la conexión con ' + callUsername);
+                hangUp();
+            }
+        };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('offer', { offer, to: callUsername });
         console.log(`Offer enviado a ${callUsername}:`, offer);
         callUsernameInput.value = '';
+        updateVideoGrid();
     } catch (error) {
         console.error('Error en addUserToCall:', error);
-        alert('Error al añadir usuario');
+        alert('Error al añadir usuario: ' + error.message);
     }
 }
 
@@ -244,6 +275,7 @@ function addRemoteVideo(username, stream) {
         existingVideo.srcObject = stream;
         console.log(`Stream actualizado para ${username}:`, stream);
     }
+    updateVideoGrid();
 }
 
 function removeRemoteVideo(username) {
@@ -262,6 +294,22 @@ function removeRemoteVideo(username) {
         `;
         videoContainer.appendChild(placeholder);
     }
+    updateVideoGrid();
+}
+
+function updateVideoGrid() {
+    const participantCount = Object.keys(peerConnections).length + 1; // +1 para el usuario local
+    videoContainer.className = 'video-grid';
+    if (participantCount === 1) {
+        videoContainer.classList.add('one');
+    } else if (participantCount === 2) {
+        videoContainer.classList.add('two');
+    } else if (participantCount === 3) {
+        videoContainer.classList.add('three');
+    } else if (participantCount === 4) {
+        videoContainer.classList.add('four');
+    }
+    console.log(`Cuadrícula actualizada para ${participantCount} participantes`);
 }
 
 function hangUp() {
@@ -294,6 +342,7 @@ function hangUp() {
     isScreenSharing = false;
     cameraBtn.textContent = 'Apagar Cámara';
     screenShareBtn.textContent = 'Compartir Pantalla';
+    updateVideoGrid();
 }
 
 socket.on('offer', async ({ offer, from }) => {
@@ -304,6 +353,7 @@ socket.on('offer', async ({ offer, from }) => {
         callRequestModal.classList.remove('hidden');
         ringtone.currentTime = 0;
         ringtone.play().catch(error => console.log('Error al reproducir tono:', error));
+        console.log(`Oferta recibida de ${from}:`, offer);
     }
 });
 
@@ -337,6 +387,13 @@ async function acceptCall() {
                 console.log(`ICE candidate enviado a ${currentCaller}:`, event.candidate);
             }
         };
+        pc.onconnectionstatechange = () => {
+            console.log(`Estado de conexión para ${currentCaller}: ${pc.connectionState}`);
+            if (pc.connectionState === 'failed') {
+                alert('Fallo en la conexión con ' + currentCaller);
+                hangUp();
+            }
+        };
 
         await pc.setRemoteDescription(new RTCSessionDescription(currentOffer));
         console.log(`Remote description seteada para ${currentCaller}:`, currentOffer);
@@ -351,9 +408,10 @@ async function acceptCall() {
         hangBtn.classList.remove('hidden');
         cameraBtn.classList.remove('hidden');
         screenShareBtn.classList.remove('hidden');
+        updateVideoGrid();
     } catch (error) {
         console.error('Error en acceptCall:', error);
-        alert('Error al aceptar la llamada');
+        alert('Error al aceptar la llamada: ' + error.message);
     }
 }
 
@@ -363,6 +421,7 @@ function rejectCall() {
     socket.emit('reject', { to: currentCaller });
     currentCaller = null;
     currentOffer = null;
+    console.log('Llamada rechazada');
 }
 
 socket.on('answer', async ({ answer, from }) => {
@@ -373,7 +432,10 @@ socket.on('answer', async ({ answer, from }) => {
             console.log(`Remote description seteada para ${from} desde answer:`, answer);
         } catch (error) {
             console.error('Error en setRemoteDescription:', error);
+            alert('Error al procesar la respuesta: ' + error.message);
         }
+    } else {
+        console.error(`No se encontró peerConnection para ${from}`);
     }
 });
 
@@ -386,11 +448,14 @@ socket.on('ice-candidate', async ({ candidate, from }) => {
         } catch (error) {
             console.error('Error al añadir ICE candidate:', error);
         }
+    } else {
+        console.error(`No se encontró peerConnection para ${from}`);
     }
 });
 
 socket.on('reject', () => {
     hangUp();
+    console.log('Llamada rechazada por el otro usuario');
 });
 
 socket.on('hangup', ({ from }) => {
@@ -402,6 +467,7 @@ socket.on('hangup', ({ from }) => {
         if (Object.keys(peerConnections).length === 0) {
             hangUp();
         }
+        console.log(`Usuario ${from} colgó`);
     }
 });
 
@@ -436,6 +502,7 @@ function showCallSection() {
     screenShareBtn.classList.add('hidden');
     callUsernameInput.value = '';
     localUsername.textContent = '';
+    updateVideoGrid();
 }
 
 function clearInputs(section) {
@@ -467,16 +534,21 @@ async function saveRingtone() {
     formData.append('ringtone', file);
     formData.append('username', document.getElementById('current-user').textContent);
 
-    const res = await fetch(`${SERVER_URL}/upload-ringtone`, {
-        method: 'POST',
-        body: formData
-    });
-    const data = await res.json();
-    if (res.ok) {
-        await loadRingtone();
-        alert('Tono de llamada guardado con éxito.');
-    } else {
-        alert('Error al guardar el tono: ' + data.error);
+    try {
+        const res = await fetch(`${SERVER_URL}/upload-ringtone`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+            await loadRingtone();
+            alert('Tono de llamada guardado con éxito.');
+        } else {
+            alert('Error al guardar el tono: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error en saveRingtone:', error);
+        alert('Error al guardar el tono');
     }
 }
 
@@ -495,6 +567,7 @@ async function loadRingtone() {
             }
             await ringtone.load();
             ringtone.loop = false;
+            console.log('Tono de llamada cargado');
         }
     } catch (error) {
         console.log('Error al cargar el tono:', error);
@@ -526,6 +599,7 @@ async function populateCameraOptions() {
         if (videoDevices.length > 0 && !selectedCameraId) {
             selectedCameraId = videoDevices[0].deviceId;
         }
+        console.log('Opciones de cámara pobladas:', videoDevices);
     } catch (error) {
         console.error('Error al enumerar cámaras:', error);
     }
@@ -535,20 +609,26 @@ async function changeCamera() {
     selectedCameraId = cameraSelect.value;
     if (localStream && !isScreenSharing) {
         localStream.getTracks().forEach(track => track.stop());
-        localStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { deviceId: { exact: selectedCameraId } }, 
-            audio: true 
-        });
-        localVideo.srcObject = localStream;
-        Object.values(peerConnections).forEach(peer => {
-            const senders = peer.pc.getSenders();
-            const videoTrack = localStream.getVideoTracks()[0];
-            senders.forEach(sender => {
-                if (sender.track.kind === 'video') {
-                    sender.replaceTrack(videoTrack);
-                }
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { deviceId: { exact: selectedCameraId } }, 
+                audio: true 
             });
-        });
+            localVideo.srcObject = localStream;
+            Object.values(peerConnections).forEach(peer => {
+                const senders = peer.pc.getSenders();
+                const videoTrack = localStream.getVideoTracks()[0];
+                senders.forEach(sender => {
+                    if (sender.track.kind === 'video') {
+                        sender.replaceTrack(videoTrack);
+                    }
+                });
+            });
+            console.log('Cámara cambiada a:', selectedCameraId);
+        } catch (error) {
+            console.error('Error en changeCamera:', error);
+            alert('Error al cambiar la cámara');
+        }
     }
 }
 
@@ -560,6 +640,7 @@ function toggleCamera() {
     videoTrack.enabled = cameraOn;
     localVideoOff.classList.toggle('hidden', cameraOn);
     cameraBtn.textContent = cameraOn ? 'Apagar Cámara' : 'Encender Cámara';
+    console.log('Cámara toggled:', cameraOn);
 }
 
 async function toggleScreenShare() {
@@ -586,6 +667,7 @@ async function toggleScreenShare() {
             localStream.getVideoTracks()[0].onended = () => {
                 toggleScreenShare();
             };
+            console.log('Pantalla compartida iniciada');
         } else {
             localStream.getTracks().forEach(track => track.stop());
             localStream = await navigator.mediaDevices.getUserMedia({ 
@@ -606,11 +688,11 @@ async function toggleScreenShare() {
                     }
                 });
             });
+            console.log('Vuelto a cámara');
         }
-        console.log('Screen share toggled:', isScreenSharing);
     } catch (error) {
         console.error('Error en toggleScreenShare:', error);
-        alert('Error al compartir pantalla');
+        alert('Error al compartir pantalla: ' + error.message);
     }
 }
 
