@@ -115,7 +115,7 @@ async function startCall() {
         return;
     }
 
-    callStatus.textContent = `Estado: Solicitando llamada a ${callUsername}...`;
+    callStatus.textContent = `Estado: Conectando con ${callUsername}...`;
     try {
         if (!localStream) {
             localStream = await navigator.mediaDevices.getUserMedia({ 
@@ -187,7 +187,7 @@ async function addUserToCall() {
         return;
     }
 
-    callStatus.textContent = `Estado: Añadiendo a ${callUsername} a la llamada...`;
+    callStatus.textContent = `Estado: Añadiendo a ${callUsername}...`;
     try {
         const pc = new RTCPeerConnection(config);
         peerConnections[callUsername] = pc;
@@ -244,6 +244,15 @@ function addRemoteVideo(username, stream) {
     updateCallStatus();
 }
 
+function removeRemoteVideo(username) {
+    const wrapper = document.querySelector(`#remoteVideo-${username}`)?.parentElement;
+    if (wrapper) {
+        wrapper.remove();
+        console.log(`Video remoto eliminado para ${username}`);
+    }
+    updateCallStatus();
+}
+
 function updateCallStatus() {
     const participants = Object.keys(peerConnections).join(', ');
     document.getElementById('call-status').textContent = participants 
@@ -257,12 +266,13 @@ function hangUp() {
         if (pc) {
             socket.emit('hangup', { to: username });
             pc.close();
-            const wrapper = document.querySelector(`#remoteVideo-${username}`);
-            if (wrapper) wrapper.parentElement.remove();
+            removeRemoteVideo(username);
         }
     });
-    if (localStream) localStream.getTracks().forEach(track => track.stop());
-    localStream = null;
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
     localVideo.srcObject = null;
     localVideoOff.classList.add('hidden');
     localUsername.textContent = '';
@@ -297,7 +307,7 @@ socket.on('offer', async ({ offer, from }) => {
     if (isLoggedIn && !callSection.classList.contains('hidden')) {
         currentCaller = from;
         currentOffer = offer;
-        callerName.textContent = `${from} está llamándote.`;
+        callerName.textContent = `${from} está llamándote`;
         callRequestModal.classList.remove('hidden');
         ringtone.currentTime = 0;
         ringtone.play().catch(error => console.log('Error al reproducir tono:', error));
@@ -400,8 +410,7 @@ socket.on('hangup', ({ from }) => {
     if (pc) {
         pc.close();
         delete peerConnections[from];
-        const wrapper = document.querySelector(`#remoteVideo-${from}`);
-        if (wrapper) wrapper.parentElement.remove();
+        removeRemoteVideo(from);
         if (Object.keys(peerConnections).length === 0) {
             hangUp();
         } else {
@@ -571,7 +580,6 @@ function toggleCamera() {
 async function toggleScreenShare() {
     try {
         if (!isScreenSharing) {
-            // Comenzar a compartir pantalla
             localStream.getTracks().forEach(track => track.stop());
             localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
@@ -580,7 +588,6 @@ async function toggleScreenShare() {
             localVideoOff.classList.add('hidden');
             cameraOn = true;
 
-            // Actualizar tracks en todas las conexiones
             Object.values(peerConnections).forEach(pc => {
                 const senders = pc.getSenders();
                 const videoTrack = localStream.getVideoTracks()[0];
@@ -591,12 +598,10 @@ async function toggleScreenShare() {
                 });
             });
 
-            // Detener pantalla si el usuario cierra manualmente
             localStream.getVideoTracks()[0].onended = () => {
-                toggleScreenShare(); // Volver a cámara cuando se detiene
+                toggleScreenShare();
             };
         } else {
-            // Volver a la cámara
             localStream.getTracks().forEach(track => track.stop());
             localStream = await navigator.mediaDevices.getUserMedia({ 
                 video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
@@ -607,7 +612,6 @@ async function toggleScreenShare() {
             screenShareBtn.textContent = 'Compartir Pantalla';
             localVideoOff.classList.toggle('hidden', !cameraOn);
 
-            // Actualizar tracks en todas las conexiones
             Object.values(peerConnections).forEach(pc => {
                 const senders = pc.getSenders();
                 const videoTrack = localStream.getVideoTracks()[0];
