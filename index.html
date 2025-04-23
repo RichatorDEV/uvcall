@@ -1,4 +1,43 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -29,12 +68,10 @@
     </div>
 
     <div class="container hidden" id="call-section">
-        <header>
-            <h1>UV Call</h1>
-            <p><span id="current-user"></span></p>
-            <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
-        </header>
-        <div class="video-grid" id="video-container">
+        <h1>UV Call</h1>
+        <p>Bienvenido, <span id="current-user"></span></p>
+        <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
+        <div class="video-container" id="video-container">
             <div class="video-wrapper">
                 <span class="username-label" id="local-username"></span>
                 <video id="localVideo" autoplay muted></video>
@@ -47,8 +84,8 @@
         </div>
         <div class="controls">
             <input type="text" id="call-username" placeholder="Usuario a llamar">
-            <button id="call-btn" onclick="startCall()">Iniciar Llamada</button>
-            <button id="add-user-btn" class="hidden" onclick="addUserToCall()">Añadir</button>
+            <button id="call-btn" onclick="startCall()">Llamar</button>
+            <button id="add-user-btn" class="hidden" onclick="addUserToCall()">Añadir usuario</button>
             <button id="hang-btn" class="hidden" onclick="hangUp()">Colgar</button>
             <button id="camera-btn" class="hidden" onclick="toggleCamera()">Apagar Cámara</button>
             <button id="screen-share-btn" class="hidden" onclick="toggleScreenShare()">Compartir Pantalla</button>
@@ -63,16 +100,15 @@
             <button onclick="changeCamera()" class="modern-btn">Cambiar Cámara</button>
             <button onclick="logout()" class="modern-btn logout-btn">Cerrar Sesión</button>
         </div>
+        <p id="call-status" class="status">Estado: Listo</p>
     </div>
 
     <div class="modal hidden" id="call-request-modal">
         <div class="modal-content">
             <h2>Llamada Entrante</h2>
             <p id="caller-name"></p>
-            <div class="modal-buttons">
-                <button onclick="acceptCall()">Aceptar</button>
-                <button onclick="rejectCall()">Rechazar</button>
-            </div>
+            <button onclick="acceptCall()">Aceptar</button>
+            <button onclick="rejectCall()">Rechazar</button>
         </div>
     </div>
 
