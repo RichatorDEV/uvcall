@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UV Meet</title>
+    <title>UV Call</title>
     <link rel="icon" href="https://files.catbox.moe/eaogb2.png" type="image/png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container" id="auth-section">
-        <h1>UV Meet</h1>
+    <div class="auth-section" id="auth-section">
+        <h1>UV Call</h1>
         <div class="form hidden" id="register-form">
             <h2>Registro</h2>
             <input type="text" id="reg-username" placeholder="Usuario" required>
@@ -28,9 +28,9 @@
         </div>
     </div>
 
-    <div class="container hidden" id="call-section">
+    <div class="call-section hidden" id="call-section">
         <header>
-            <h1>UV Meet</h1>
+            <h1>UV Call</h1>
             <p><span id="current-user"></span></p>
             <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
         </header>
