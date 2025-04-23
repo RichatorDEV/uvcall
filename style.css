@@ -87,6 +87,8 @@ h2, h3 {
 #camera-btn:hover { background: #e0a800; }
 #add-user-btn { background: #17a2b8; }
 #add-user-btn:hover { background: #138496; }
+#screen-share-btn { background: #6f42c1; }
+#screen-share-btn:hover { background: #5a32a3; }
 #settings-btn {
     position: absolute;
     top: 10px;
@@ -136,6 +138,23 @@ h2, h3 {
 .video-wrapper {
     position: relative;
     width: 48%;
+    min-height: 150px;
+}
+
+.remote-placeholder .username-label {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.video-placeholder {
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ccc;
+    font-size: 1em;
 }
 
 .username-label {
