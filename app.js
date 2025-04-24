@@ -1,6 +1,6 @@
 const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
-let localStream, peerConnections = {}, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true, selectedCameraId = null, isScreenSharing = false;
+let localStream, peerConnections = {}, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true, selectedCameraId = null, isScreenSharing = false, enlargedVideo = null;
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
 const MAX_PARTICIPANTS = 4;
 
@@ -36,7 +36,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         authSection.classList.remove('hidden');
         callSection.classList.add('hidden');
     }
+    setupVideoClickListeners();
 });
+
+function setupVideoClickListeners() {
+    videoContainer.addEventListener('click', (event) => {
+        const video = event.target.closest('video');
+        if (!video) return;
+
+        const wrapper = video.parentElement;
+        const username = wrapper.querySelector('.username-label').textContent;
+        const isLocal = video.id === 'localVideo';
+
+        if (isScreenSharing && (isLocal || peerConnections[username]?.isScreenSharing)) {
+            if (!wrapper.classList.contains('enlarged')) {
+                enlargeVideo(wrapper, video, username);
+            }
+        }
+    });
+}
+
+function enlargeVideo(wrapper, video, username) {
+    if (enlargedVideo) {
+        exitFullScreen(enlargedVideo);
+    }
+
+    wrapper.classList.add('enlarged');
+    const exitBtn = document.createElement('button');
+    exitBtn.className = 'exit-fullscreen-btn';
+    exitBtn.textContent = '×';
+    exitBtn.onclick = () => exitFullScreen(wrapper);
+    wrapper.appendChild(exitBtn);
+    enlargedVideo = wrapper;
+
+    // Ensure video continues playing
+    video.play().catch(error => console.error('Error al reproducir video ampliado:', error));
+}
+
+function exitFullScreen(wrapper) {
+    wrapper.classList.remove('enlarged');
+    const exitBtn = wrapper.querySelector('.exit-fullscreen-btn');
+    if (exitBtn) exitBtn.remove();
+    enlargedVideo = null;
+}
 
 async function register() {
     const username = document.getElementById('reg-username').value.trim();
@@ -191,7 +233,7 @@ async function addUserToCall() {
     try {
         const pc = new RTCPeerConnection(config);
         peerConnections[callUsername] = pc;
-        localStream.getTracks().forEach(track => {
+        localStream.getTracks().forJSONArray.forEach(track => {
             pc.addTrack(track, localStream);
             console.log(`Track añadido a ${callUsername}:`, track);
         });
@@ -211,12 +253,52 @@ async function addUserToCall() {
         await pc.setLocalDescription(offer);
         socket.emit('offer', { offer, to: callUsername });
         console.log(`Offer enviado a ${callUsername}:`, offer);
+
+        // Notify existing participants to connect with the new user
+        const existingParticipants = Object.keys(peerConnections).filter(user => user !== callUsername);
+        socket.emit('new-participant', { newUser: callUsername, participants: existingParticipants });
+
         callUsernameInput.value = '';
     } catch (error) {
         console.error('Error en addUserToCall:', error);
         callStatus.textContent = 'Estado: Error al añadir usuario';
     }
 }
+
+socket.on('new-participant', async ({ newUser, from }) => {
+    if (!peerConnections[newUser] && Object.keys(peerConnections).length < MAX_PARTICIPANTS - 1) {
+        const callStatus = document.getElementById('call-status');
+        callStatus.textContent = `Estado: Conectando con ${newUser}...`;
+        try {
+            const pc = new RTCPeerConnection(config);
+            peerConnections[newUser] = pc;
+            localStream.getTracks().forEach(track => {
+                pc.addTrack(track, localStream);
+                console.log(`Track añadido a ${newUser}:`, track);
+            });
+
+            pc.ontrack = (event) => {
+                console.log(`Evento ontrack recibido de ${newUser}:`, event.streams);
+                addRemoteVideo(newUser, event.streams[0]);
+            };
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('ice-candidate', { candidate: event.candidate, to: newUser });
+                    console.log(`ICE candidate enviado a ${newUser}:`, event.candidate);
+                }
+            };
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket.emit('offer', { offer, to: newUser });
+            console.log(`Offer enviado a ${newUser}:`, offer);
+            updateCallStatus();
+        } catch (error) {
+            console.error('Error al conectar con nuevo participante:', error);
+            callStatus.textContent = 'Estado: Error al conectar con nuevo participante';
+        }
+    }
+});
 
 function addRemoteVideo(username, stream) {
     const placeholder = document.getElementById('remote-placeholder');
@@ -281,6 +363,9 @@ function hangUp() {
     isScreenSharing = false;
     cameraBtn.textContent = 'Apagar Cámara';
     screenShareBtn.textContent = 'Compartir Pantalla';
+    if (enlargedVideo) {
+        exitFullScreen(enlargedVideo);
+    }
     if (!document.getElementById('remote-placeholder')) {
         const placeholder = document.createElement('div');
         placeholder.className = 'video-wrapper remote-placeholder';
@@ -571,7 +656,6 @@ function toggleCamera() {
 async function toggleScreenShare() {
     try {
         if (!isScreenSharing) {
-            // Comenzar a compartir pantalla
             localStream.getTracks().forEach(track => track.stop());
             localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
@@ -580,7 +664,6 @@ async function toggleScreenShare() {
             localVideoOff.classList.add('hidden');
             cameraOn = true;
 
-            // Actualizar tracks en todas las conexiones
             Object.values(peerConnections).forEach(pc => {
                 const senders = pc.getSenders();
                 const videoTrack = localStream.getVideoTracks()[0];
@@ -589,14 +672,13 @@ async function toggleScreenShare() {
                         sender.replaceTrack(videoTrack);
                     }
                 });
+                pc.isScreenSharing = true; // Mark connection as screen sharing
             });
 
-            // Detener pantalla si el usuario cierra manualmente
             localStream.getVideoTracks()[0].onended = () => {
-                toggleScreenShare(); // Volver a cámara cuando se detiene
+                toggleScreenShare();
             };
         } else {
-            // Volver a la cámara
             localStream.getTracks().forEach(track => track.stop());
             localStream = await navigator.mediaDevices.getUserMedia({ 
                 video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true, 
@@ -607,7 +689,6 @@ async function toggleScreenShare() {
             screenShareBtn.textContent = 'Compartir Pantalla';
             localVideoOff.classList.toggle('hidden', !cameraOn);
 
-            // Actualizar tracks en todas las conexiones
             Object.values(peerConnections).forEach(pc => {
                 const senders = pc.getSenders();
                 const videoTrack = localStream.getVideoTracks()[0];
@@ -616,6 +697,7 @@ async function toggleScreenShare() {
                         sender.replaceTrack(videoTrack);
                     }
                 });
+                pc.isScreenSharing = false; // Reset screen sharing flag
             });
         }
         console.log('Screen share toggled:', isScreenSharing);
