@@ -1,116 +1,80 @@
 body {
     font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    background: #2f3136;
+    margin: 0;
+    color: #fff;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.auth-section {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    margin: 0;
-    color: #fff;
-    overflow: auto;
+    height: 100vh;
+    background: #36393f;
 }
 
-.container {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(12px);
-    padding: 25px;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+.auth-container {
+    background: #2f3136;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     width: 90%;
-    max-width: 450px;
+    max-width: 400px;
     text-align: center;
-    animation: fadeIn 0.5s ease-in-out;
-    position: relative;
-    z-index: 1;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
 }
 
 h1 {
-    font-size: 2.2em;
-    margin-bottom: 25px;
-    color: #fff;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-h2, h3 {
-    font-size: 1.5em;
+    font-size: 2em;
     margin-bottom: 20px;
+    color: #fff;
 }
 
-.form input, .controls input {
-    width: calc(100% - 24px);
+h2 {
+    font-size: 1.5em;
+    margin-bottom: 15px;
+}
+
+.form input {
+    width: 100%;
     padding: 12px;
     margin: 10px 0;
     border: none;
-    border-radius: 25px;
-    background: rgba(255, 255, 255, 0.25);
+    border-radius: 5px;
+    background: #40444b;
     color: #fff;
     font-size: 1em;
-    transition: background 0.3s;
-    box-sizing: border-box;
 }
 
-.form input:focus, .controls input:focus {
-    background: rgba(255, 255, 255, 0.35);
+.form input:focus {
+    background: #4a4e54;
     outline: none;
 }
 
-.form button, .controls button {
-    width: calc(100% - 24px);
+.form button {
+    width: 100%;
     padding: 12px;
-    margin: 10px auto;
+    margin: 10px 0;
     border: none;
-    border-radius: 25px;
-    background: #007bff;
+    border-radius: 5px;
+    background: #5865f2;
     color: #fff;
     font-size: 1em;
     cursor: pointer;
-    transition: background 0.3s, transform 0.2s;
-    display: block;
-    max-width: 200px;
+    transition: background 0.3s;
 }
 
-.form button:hover, .controls button:hover {
-    background: #0056b3;
-    transform: scale(1.05);
+.form button:hover {
+    background: #4752c4;
 }
-
-#call-btn { background: #28a745; }
-#call-btn:hover { background: #218838; }
-#hang-btn { background: #dc3545; }
-#hang-btn:hover { background: #c82333; }
-#camera-btn { background: #ffc107; }
-#camera-btn:hover { background: #e0a800; }
-#add-user-btn { background: #17a2b8; }
-#add-user-btn:hover { background: #138496; }
-#screen-share-btn { background: #6f42c1; }
-#screen-share-btn:hover { background: #5a32a3; }
-#settings-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    font-size: 1.5em;
-    color: #fff;
-    cursor: pointer;
-    padding: 0;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    transition: color 0.3s;
-}
-#settings-btn:hover { color: #a8cfff; }
 
 .switch {
     cursor: pointer;
-    color: #a8cfff;
-    margin-top: 15px;
-    transition: color 0.3s;
+    color: #b9bbbe;
+    margin-top: 10px;
 }
 
 .switch:hover {
@@ -120,62 +84,70 @@ h2, h3 {
 .status {
     margin-top: 10px;
     font-size: 0.9em;
-    color: #ffcccb;
+    color: #ff5555;
 }
 
 .status.success {
-    color: #ccffcc;
+    color: #55ff55;
+}
+
+.call-section {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
 }
 
 .video-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 10px;
-    margin: 20px 0;
-    position: relative;
+    padding: 10px;
+    background: #1e2124;
+    overflow: auto;
 }
 
 .video-wrapper {
     position: relative;
-    width: 48%;
-    min-height: 150px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
-.remote-placeholder .username-label {
-    background: rgba(0, 0, 0, 0.5);
+.remote-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2f3136;
+    color: #b9bbbe;
+    font-size: 1.2em;
 }
 
 .video-placeholder {
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ccc;
-    font-size: 1em;
 }
 
 .username-label {
     position: absolute;
-    top: -20px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 10px;
+    left: 10px;
     background: rgba(0, 0, 0, 0.7);
     padding: 5px 10px;
     border-radius: 5px;
-    font-size: 1em;
+    font-size: 0.9em;
     color: #fff;
-    text-align: center;
 }
 
 video {
     width: 100%;
-    border-radius: 10px;
+    height: 100%;
+    object-fit: cover;
     background: #000;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     cursor: pointer;
 }
 
@@ -186,7 +158,6 @@ video {
     transform: translate(-50%, -50%);
     color: #fff;
     font-size: 1.2em;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     background: rgba(0, 0, 0, 0.7);
     padding: 10px;
     border-radius: 5px;
@@ -210,7 +181,7 @@ video {
 }
 
 .enlarged .username-label {
-    top: 10px;
+    bottom: 20px;
     font-size: 1.2em;
     z-index: 2100;
 }
@@ -241,62 +212,124 @@ video {
     background: #c82333;
 }
 
-.settings {
-    margin-top: 20px;
-    padding: 15px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
+.control-bar {
+    background: #2f3136;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
 }
 
-.settings input[type="file"] {
-    width: calc(100% - 24px);
-    margin: 10px 0;
-    color: #fff;
-}
-
-.settings select {
-    width: calc(100% - 24px);
-    padding: 12px;
-    margin: 10px 0;
-    border: none;
-    border-radius: 25px;
-    background: rgba(255, 255, 255, 0.25);
-    color: #fff;
+.current-user {
     font-size: 1em;
+    color: #b9bbbe;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.controls input {
+    padding: 8px;
+    border: none;
+    border-radius: 5px;
+    background: #40444b;
+    color: #fff;
+    font-size: 0.9em;
+}
+
+.controls button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    background: #5865f2;
+    color: #fff;
+    font-size: 0.9em;
+    cursor: pointer;
     transition: background 0.3s;
 }
 
-.settings select:focus {
-    background: rgba(255, 255, 255, 0.35);
-    outline: none;
+.controls button:hover {
+    background: #4752c4;
 }
 
-.settings .modern-btn {
-    width: calc(100% - 24px);
-    max-width: 150px;
-    padding: 12px;
-    margin: 10px auto;
+#call-btn { background: #43b581; }
+#call-btn:hover { background: #3ca374; }
+#hang-btn { background: #da373c; }
+#hang-btn:hover { background: #b02e31; }
+#camera-btn { background: #f1c40f; }
+#camera-btn:hover { background: #d4a70d; }
+#add-user-btn { background: #7289da; }
+#add-user-btn:hover { background: #5b6eae; }
+#screen-share-btn { background: #9b59b6; }
+#screen-share-btn:hover { background: #7e3c97; }
+#settings-btn {
+    background: none;
+    font-size: 1.2em;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+}
+
+#call-status {
+    font-size: 0.9em;
+    color: #b9bbbe;
+}
+
+.settings-panel {
+    position: absolute;
+    right: 10px;
+    top: 50px;
+    background: #2f3136;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    width: 250px;
+    z-index: 1000;
+}
+
+.settings-panel h3 {
+    margin: 0 0 10px;
+    font-size: 1.2em;
+}
+
+.settings-panel input[type="file"],
+.settings-panel select {
+    width: 100%;
+    padding: 8px;
+    margin: 10px 0;
     border: none;
-    border-radius: 25px;
-    background: linear-gradient(135deg, #007bff, #00c4ff);
+    border-radius: 5px;
+    background: #40444b;
     color: #fff;
-    font-size: 1em;
+    font-size: 0.9em;
+}
+
+.settings-panel .modern-btn {
+    width: 100%;
+    padding: 8px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 5px;
+    background: #5865f2;
+    color: #fff;
+    font-size: 0.9em;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
-    transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.settings .modern-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.6);
+.settings-panel .modern-btn:hover {
+    background: #4752c4;
 }
 
-.settings .logout-btn {
-    background: linear-gradient(135deg, #dc3545, #ff6b6b);
+.settings-panel .logout-btn {
+    background: #da373c;
 }
 
-.settings .logout-btn:hover {
-    box-shadow: 0 6px 20px rgba(220, 53, 69, 0.6);
+.settings-panel .logout-btn:hover {
+    background: #b02e31;
 }
 
 .hidden {
@@ -317,38 +350,35 @@ video {
 }
 
 .modal-content {
-    background: rgba(255, 255, 255, 0.9);
+    background: #2f3136;
     padding: 20px;
-    border-radius: 15px;
+    border-radius: 10px;
     text-align: center;
-    color: #333;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    animation: fadeIn 0.3s ease-in-out;
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .modal-content button {
     margin: 10px;
     padding: 10px 20px;
     border: none;
-    border-radius: 20px;
+    border-radius: 5px;
     cursor: pointer;
-    transition: background 0.3s;
+    color: #fff;
 }
 
 .modal-content button:first-child {
-    background: #28a745;
-    color: #fff;
+    background: #43b581;
 }
 
 .modal-content button:first-child:hover {
-    background: #218838;
+    background: #3ca374;
 }
 
 .modal-content button:last-child {
-    background: #dc3545;
-    color: #fff;
+    background: #da373c;
 }
 
 .modal-content button:last-child:hover {
-    background: #c82333;
+    background: #b02e31;
 }
