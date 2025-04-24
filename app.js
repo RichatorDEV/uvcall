@@ -162,6 +162,41 @@ async function checkUserExists(username) {
     }
 }
 
+async function createPeerConnection(username) {
+    const pc = new RTCPeerConnection(config);
+    peerConnections[username] = pc;
+
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream);
+            console.log(`Track añadido a ${username}:`, track);
+        });
+    }
+
+    pc.ontrack = (event) => {
+        console.log(`Evento ontrack recibido de ${username}, streams:`, event.streams);
+        if (event.streams && event.streams[0]) {
+            addRemoteVideo(username, event.streams[0]);
+        } else {
+            console.error(`No streams received for ${username}`);
+        }
+    };
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit('ice-candidate', { candidate: event.candidate, to: username });
+            console.log(`ICE candidate enviado a ${username}:`, event.candidate);
+        }
+    };
+    pc.onconnectionstatechange = () => {
+        console.log(`Connection state for ${username}: ${pc.connectionState}`);
+        if (pc.connectionState === 'failed') {
+            document.getElementById('call-status').textContent = `Estado: Conexión fallida con ${username}`;
+        }
+    };
+
+    return pc;
+}
+
 async function startCall() {
     const callUsername = callUsernameInput.value.trim();
     const callStatus = document.getElementById('call-status');
@@ -188,37 +223,10 @@ async function startCall() {
             console.log('Stream local obtenido:', localStream);
         }
 
-        const pc = new RTCPeerConnection(config);
-        peerConnections[callUsername] = pc;
-        localStream.getTracks().forEach(track => {
-            pc.addTrack(track, localStream);
-            console.log(`Track añadido a ${callUsername}:`, track);
-        });
-
-        pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${callUsername}, streams:`, event.streams);
-            if (event.streams && event.streams[0]) {
-                addRemoteVideo(callUsername, event.streams[0]);
-            } else {
-                console.error(`No streams received for ${callUsername}`);
-            }
-        };
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
-                console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
-            }
-        };
-        pc.onconnectionstatechange = () => {
-            console.log(`Connection state for ${callUsername}: ${pc.connectionState}`);
-            if (pc.connectionState === 'failed') {
-                callStatus.textContent = `Estado: Conexión fallida con ${callUsername}`;
-            }
-        };
-
+        const pc = await createPeerConnection(callUsername);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        socket.emit('offer', { offer, to: callUsername });
+        socket.emit('offer', { offer, to: callUsername, participants: [document.getElementById('current-user').textContent] });
         console.log(`Offer enviado a ${callUsername}:`, offer);
 
         localUsername.textContent = document.getElementById('current-user').textContent;
@@ -261,42 +269,15 @@ async function addUserToCall() {
 
     callStatus.textContent = `Estado: Añadiendo a ${callUsername} a la llamada...`;
     try {
-        const pc = new RTCPeerConnection(config);
-        peerConnections[callUsername] = pc;
-        localStream.getTracks().forEach(track => {
-            pc.addTrack(track, localStream);
-            console.log(`Track añadido a ${callUsername}:`, track);
-        });
-
-        pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${callUsername}, streams:`, event.streams);
-            if (event.streams && event.streams[0]) {
-                addRemoteVideo(callUsername, event.streams[0]);
-            } else {
-                console.error(`No streams received for ${callUsername}`);
-            }
-        };
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
-                console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
-            }
-        };
-        pc.onconnectionstatechange = () => {
-            console.log(`Connection state for ${callUsername}: ${pc.connectionState}`);
-            if (pc.connectionState === 'failed') {
-                callStatus.textContent = `Estado: Conexión fallida con ${callUsername}`;
-            }
-        };
-
+        const pc = await createPeerConnection(callUsername);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        socket.emit('offer', { offer, to: callUsername });
+        const currentUser = document.getElementById('current-user').textContent;
+        const participants = [currentUser, ...Object.keys(peerConnections)];
+        socket.emit('offer', { offer, to: callUsername, participants });
         console.log(`Offer enviado a ${callUsername}:`, offer);
 
-        const existingParticipants = Object.keys(peerConnections).filter(user => user !== callUsername);
-        socket.emit('new-participant', { newUser: callUsername, participants: existingParticipants });
-
+        socket.emit('new-participant', { newUser: callUsername, participants });
         callUsernameInput.value = '';
     } catch (error) {
         console.error('Error en addUserToCall:', error);
@@ -304,42 +285,15 @@ async function addUserToCall() {
     }
 }
 
-socket.on('new-participant', async ({ newUser, from }) => {
+socket.on('new-participant', async ({ newUser, participants }) => {
     if (!peerConnections[newUser] && Object.keys(peerConnections).length < MAX_PARTICIPANTS - 1) {
         const callStatus = document.getElementById('call-status');
         callStatus.textContent = `Estado: Conectando con ${newUser}...`;
         try {
-            const pc = new RTCPeerConnection(config);
-            peerConnections[newUser] = pc;
-            localStream.getTracks().forEach(track => {
-                pc.addTrack(track, localStream);
-                console.log(`Track añadido a ${newUser}:`, track);
-            });
-
-            pc.ontrack = (event) => {
-                console.log(`Evento ontrack recibido de ${newUser}, streams:`, event.streams);
-                if (event.streams && event.streams[0]) {
-                    addRemoteVideo(newUser, event.streams[0]);
-                } else {
-                    console.error(`No streams received for ${newUser}`);
-                }
-            };
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('ice-candidate', { candidate: event.candidate, to: newUser });
-                    console.log(`ICE candidate enviado a ${newUser}:`, event.candidate);
-                }
-            };
-            pc.onconnectionstatechange = () => {
-                console.log(`Connection state for ${newUser}: ${pc.connectionState}`);
-                if (pc.connectionState === 'failed') {
-                    callStatus.textContent = `Estado: Conexión fallida con ${newUser}`;
-                }
-            };
-
+            const pc = await createPeerConnection(newUser);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            socket.emit('offer', { offer, to: newUser });
+            socket.emit('offer', { offer, to: newUser, participants });
             console.log(`Offer enviado a ${newUser}:`, offer);
             updateCallStatus();
         } catch (error) {
@@ -385,15 +339,19 @@ function updateCallStatus() {
 }
 
 function hangUp() {
+    const currentUser = document.getElementById('current-user').textContent;
+    const participants = Object.keys(peerConnections);
+    socket.emit('hangup', { from: currentUser, participants });
+
     Object.keys(peerConnections).forEach(username => {
         const pc = peerConnections[username];
         if (pc) {
-            socket.emit('hangup', { to: username });
             pc.close();
             const wrapper = document.querySelector(`#remoteVideo-${username}`);
             if (wrapper) wrapper.parentElement.remove();
         }
     });
+
     if (localStream) localStream.getTracks().forEach(track => track.stop());
     localStream = null;
     localVideo.srcObject = null;
@@ -429,7 +387,7 @@ function hangUp() {
     }
 }
 
-socket.on('offer', async ({ offer, from }) => {
+socket.on('offer', async ({ offer, from, participants }) => {
     if (isLoggedIn && !callSection.classList.contains('hidden')) {
         currentCaller = from;
         currentOffer = offer;
@@ -437,6 +395,9 @@ socket.on('offer', async ({ offer, from }) => {
         callRequestModal.classList.remove('hidden');
         ringtone.currentTime = 0;
         ringtone.play().catch(error => console.log('Error al reproducir tono:', error));
+
+        // Store participants for use in acceptCall
+        currentOffer.participants = participants;
     }
 });
 
@@ -454,34 +415,8 @@ async function acceptCall() {
             localVideo.srcObject = localStream;
             console.log('Stream local obtenido al aceptar:', localStream);
         }
-        const pc = new RTCPeerConnection(config);
-        peerConnections[currentCaller] = pc;
-        localStream.getTracks().forEach(track => {
-            pc.addTrack(track, localStream);
-            console.log(`Track añadido a ${currentCaller}:`, track);
-        });
 
-        pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${currentCaller}, streams:`, event.streams);
-            if (event.streams && event.streams[0]) {
-                addRemoteVideo(currentCaller, event.streams[0]);
-            } else {
-                console.error(`No streams received for ${currentCaller}`);
-            }
-        };
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
-                console.log(`ICE candidate enviado a ${currentCaller}:`, event.candidate);
-            }
-        };
-        pc.onconnectionstatechange = () => {
-            console.log(`Connection state for ${currentCaller}: ${pc.connectionState}`);
-            if (pc.connectionState === 'failed') {
-                callStatus.textContent = `Estado: Conexión fallida con ${currentCaller}`;
-            }
-        };
-
+        const pc = await createPeerConnection(currentCaller);
         await pc.setRemoteDescription(new RTCSessionDescription(currentOffer));
         console.log(`Remote description seteada para ${currentCaller}:`, currentOffer);
         const answer = await pc.createAnswer();
@@ -489,7 +424,20 @@ async function acceptCall() {
         socket.emit('answer', { answer, to: currentCaller });
         console.log(`Answer enviado a ${currentCaller}:`, answer);
 
-        localUsername.textContent = document.getElementById('current-user').textContent;
+        // Connect to other participants
+        const currentUser = document.getElementById('current-user').textContent;
+        const otherParticipants = currentOffer.participants.filter(p => p !== currentUser && p !== currentCaller);
+        for (const participant of otherParticipants) {
+            if (!peerConnections[participant]) {
+                const newPc = await createPeerConnection(participant);
+                const newOffer = await newPc.createOffer();
+                await newPc.setLocalDescription(newOffer);
+                socket.emit('offer', { offer: newOffer, to: participant, participants: [currentUser, ...Object.keys(peerConnections)] });
+                console.log(`Offer enviado a participante existente ${participant}:`, newOffer);
+            }
+        }
+
+        localUsername.textContent = currentUser;
         callBtn.classList.add('hidden');
         addUserBtn.classList.remove('hidden');
         hangBtn.classList.remove('hidden');
@@ -541,18 +489,19 @@ socket.on('reject', () => {
     document.getElementById('call-status').textContent = 'Estado: La llamada fue rechazada';
 });
 
-socket.on('hangup', ({ from }) => {
+socket.on('hangup', ({ from, participants }) => {
     const pc = peerConnections[from];
     if (pc) {
         pc.close();
         delete peerConnections[from];
         const wrapper = document.querySelector(`#remoteVideo-${from}`);
         if (wrapper) wrapper.parentElement.remove();
-        if (Object.keys(peerConnections).length === 0) {
-            hangUp();
-        } else {
-            updateCallStatus();
-        }
+    }
+
+    if (Object.keys(peerConnections).length === 0) {
+        hangUp();
+    } else {
+        updateCallStatus();
     }
 });
 
