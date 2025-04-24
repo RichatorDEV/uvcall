@@ -8,30 +8,29 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container" id="auth-section">
-        <h1>UV Call</h1>
-        <div class="form hidden" id="register-form">
-            <h2>Registro</h2>
-            <input type="text" id="reg-username" placeholder="Usuario" required>
-            <input type="password" id="reg-password" placeholder="Contraseña" required>
-            <button onclick="register()">Registrarse</button>
-            <p class="switch" onclick="showLogin()">¿Ya tienes cuenta? Inicia sesión</p>
-            <p id="reg-status" class="status"></p>
-        </div>
-        <div class="form" id="login-form">
-            <h2>Iniciar Sesión</h2>
-            <input type="text" id="login-username" placeholder="Usuario" required>
-            <input type="password" id="login-password" placeholder="Contraseña" required>
-            <button onclick="login()">Iniciar Sesión</button>
-            <p class="switch" onclick="showRegister()">¿No tienes cuenta? Regístrate</p>
-            <p id="login-status" class="status"></p>
+    <div class="auth-section" id="auth-section">
+        <div class="auth-container">
+            <h1>UV Call</h1>
+            <div class="form hidden" id="register-form">
+                <h2>Registro</h2>
+                <input type="text" id="reg-username" placeholder="Usuario" required>
+                <input type="password" id="reg-password" placeholder="Contraseña" required>
+                <button onclick="register()">Registrarse</button>
+                <p class="switch" onclick="showLogin()">¿Ya tienes cuenta? Inicia sesión</p>
+                <p id="reg-status" class="status"></p>
+            </div>
+            <div class="form" id="login-form">
+                <h2>Iniciar Sesión</h2>
+                <input type="text" id="login-username" placeholder="Usuario" required>
+                <input type="password" id="login-password" placeholder="Contraseña" required>
+                <button onclick="login()">Iniciar Sesión</button>
+                <p class="switch" onclick="showRegister()">¿No tienes cuenta? Regístrate</p>
+                <p id="login-status" class="status"></p>
+            </div>
         </div>
     </div>
 
-    <div class="container hidden" id="call-section">
-        <h1>UV Call</h1>
-        <p>Bienvenido, <span id="current-user"></span></p>
-        <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
+    <div class="call-section hidden" id="call-section">
         <div class="video-container" id="video-container">
             <div class="video-wrapper">
                 <span class="username-label" id="local-username"></span>
@@ -43,15 +42,20 @@
                 <div class="video-placeholder">Sin video</div>
             </div>
         </div>
-        <div class="controls">
-            <input type="text" id="call-username" placeholder="Usuario a llamar">
-            <button id="call-btn" onclick="startCall()">Llamar</button>
-            <button id="add-user-btn" class="hidden" onclick="addUserToCall()">Añadir usuario</button>
-            <button id="hang-btn" class="hidden" onclick="hangUp()">Colgar</button>
-            <button id="camera-btn" class="hidden" onclick="toggleCamera()">Apagar Cámara</button>
-            <button id="screen-share-btn" class="hidden" onclick="toggleScreenShare()">Compartir Pantalla</button>
+        <div class="control-bar">
+            <span class="current-user">Bienvenido, <span id="current-user"></span></span>
+            <div class="controls">
+                <input type="text" id="call-username" placeholder="Usuario a llamar">
+                <button id="call-btn" onclick="startCall()">Llamar</button>
+                <button id="add-user-btn" class="hidden" onclick="addUserToCall()">Añadir</button>
+                <button id="hang-btn" class="hidden" onclick="hangUp()">Colgar</button>
+                <button id="camera-btn" class="hidden" onclick="toggleCamera()">Apagar Cámara</button>
+                <button id="screen-share-btn" class="hidden" onclick="toggleScreenShare()">Compartir Pantalla</button>
+                <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
+            </div>
+            <p id="call-status" class="status">Estado: Listo</p>
         </div>
-        <div class="settings hidden" id="settings-panel">
+        <div class="settings-panel hidden" id="settings-panel">
             <h3>Ajustes</h3>
             <label for="ringtone-upload">Tono de llamada:</label>
             <input type="file" id="ringtone-upload" accept="audio/*">
@@ -61,7 +65,6 @@
             <button onclick="changeCamera()" class="modern-btn">Cambiar Cámara</button>
             <button onclick="logout()" class="modern-btn logout-btn">Cerrar Sesión</button>
         </div>
-        <p id="call-status" class="status">Estado: Listo</p>
     </div>
 
     <div class="modal hidden" id="call-request-modal">
@@ -75,38 +78,6 @@
 
     <audio id="ringtone"></audio>
 
-    <script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-    </script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="app.js"></script>
 </body>
