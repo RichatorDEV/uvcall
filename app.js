@@ -1,6 +1,6 @@
 const SERVER_URL = 'https://webrtc-server-production-3fec.up.railway.app';
 const socket = io(SERVER_URL);
-let localStream, peerConnections = {}, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true, selectedCameraId = null, isScreenSharing = false, enlargedVideo = null, callId = null;
+let localStream, peerConnections = {}, currentCaller, currentOffer, isLoggedIn = false, cameraOn = true, selectedCameraId = null, isScreenSharing = false, enlargedVideo = null;
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
 const MAX_PARTICIPANTS = 4;
 
@@ -191,7 +191,6 @@ async function createPeerConnection(username) {
         console.log(`Connection state for ${username}: ${pc.connectionState}`);
         if (pc.connectionState === 'failed') {
             document.getElementById('call-status').textContent = `Estado: Conexión fallida con ${username}`;
-            removeParticipant(username);
         }
     };
 
@@ -224,20 +223,13 @@ async function startCall() {
             console.log('Stream local obtenido:', localStream);
         }
 
-        callId = Date.now().toString(); // Generar callId único
-        const currentUser = document.getElementById('current-user').textContent;
         const pc = await createPeerConnection(callUsername);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        socket.emit('offer', { 
-            offer, 
-            to: callUsername, 
-            participants: [currentUser, callUsername], 
-            callId 
-        });
-        console.log(`Offer enviado a ${callUsername} con callId ${callId}:`, offer);
+        socket.emit('offer', { offer, to: callUsername, participants: [document.getElementById('current-user').textContent] });
+        console.log(`Offer enviado a ${callUsername}:`, offer);
 
-        localUsername.textContent = currentUser;
+        localUsername.textContent = document.getElementById('current-user').textContent;
         callBtn.classList.add('hidden');
         addUserBtn.classList.remove('hidden');
         hangBtn.classList.remove('hidden');
@@ -247,7 +239,6 @@ async function startCall() {
     } catch (error) {
         console.error('Error en startCall:', error);
         callStatus.textContent = 'Estado: Error al iniciar la llamada';
-        callId = null;
     }
 }
 
@@ -278,24 +269,15 @@ async function addUserToCall() {
 
     callStatus.textContent = `Estado: Añadiendo a ${callUsername} a la llamada...`;
     try {
-        const currentUser = document.getElementById('current-user').textContent;
-        const participants = [currentUser, ...Object.keys(peerConnections), callUsername];
         const pc = await createPeerConnection(callUsername);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        socket.emit('offer', { 
-            offer, 
-            to: callUsername, 
-            participants, 
-            callId 
-        });
-        console.log(`Offer enviado a ${callUsername} con callId ${callId}:`, offer);
+        const currentUser = document.getElementById('current-user').textContent;
+        const participants = [currentUser, ...Object.keys(peerConnections)];
+        socket.emit('offer', { offer, to: callUsername, participants });
+        console.log(`Offer enviado a ${callUsername}:`, offer);
 
-        socket.emit('new-participant', { 
-            newUser: callUsername, 
-            participants, 
-            callId 
-        });
+        socket.emit('new-participant', { newUser: callUsername, participants });
         callUsernameInput.value = '';
     } catch (error) {
         console.error('Error en addUserToCall:', error);
@@ -303,8 +285,7 @@ async function addUserToCall() {
     }
 }
 
-socket.on('new-participant', async ({ newUser, participants, callId: receivedCallId }) => {
-    if (!callId) callId = receivedCallId; // Adoptar callId si no está establecido
+socket.on('new-participant', async ({ newUser, participants }) => {
     if (!peerConnections[newUser] && Object.keys(peerConnections).length < MAX_PARTICIPANTS - 1) {
         const callStatus = document.getElementById('call-status');
         callStatus.textContent = `Estado: Conectando con ${newUser}...`;
@@ -312,22 +293,9 @@ socket.on('new-participant', async ({ newUser, participants, callId: receivedCal
             const pc = await createPeerConnection(newUser);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            const currentUser = document.getElementById('current-user').textContent;
-            socket.emit('offer', { 
-                offer, 
-                to: newUser, 
-                participants: participants.filter(p => p !== newUser), 
-                callId 
-            });
-            console.log(`Offer enviado a ${newUser} con callId ${callId}:`, offer);
+            socket.emit('offer', { offer, to: newUser, participants });
+            console.log(`Offer enviado a ${newUser}:`, offer);
             updateCallStatus();
-
-            // Mostrar controles si es la primera conexión
-            callBtn.classList.add('hidden');
-            addUserBtn.classList.remove('hidden');
-            hangBtn.classList.remove('hidden');
-            cameraBtn.classList.remove('hidden');
-            screenShareBtn.classList.remove('hidden');
         } catch (error) {
             console.error('Error al conectar con nuevo participante:', error);
             callStatus.textContent = 'Estado: Error al conectar con nuevo participante';
@@ -337,7 +305,7 @@ socket.on('new-participant', async ({ newUser, participants, callId: receivedCal
 
 function addRemoteVideo(username, stream) {
     const placeholder = document.getElementById('remote-placeholder');
-    if (placeholder) {
+    if (Object.keys(peerConnections).length === 1 && placeholder) {
         placeholder.remove();
     }
 
@@ -363,20 +331,6 @@ function addRemoteVideo(username, stream) {
     updateCallStatus();
 }
 
-function removeParticipant(username) {
-    const pc = peerConnections[username];
-    if (pc) {
-        pc.close();
-        delete peerConnections[username];
-        const wrapper = document.querySelector(`#remoteVideo-${username}`);
-        if (wrapper) wrapper.parentElement.remove();
-    }
-    updateCallStatus();
-    if (Object.keys(peerConnections).length === 0) {
-        resetCall();
-    }
-}
-
 function updateCallStatus() {
     const participants = Object.keys(peerConnections).join(', ');
     document.getElementById('call-status').textContent = participants 
@@ -384,14 +338,26 @@ function updateCallStatus() {
         : 'Estado: Listo';
 }
 
-function resetCall() {
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-    }
+function hangUp() {
+    const currentUser = document.getElementById('current-user').textContent;
+    const participants = Object.keys(peerConnections);
+    socket.emit('hangup', { from: currentUser, participants });
+
+    Object.keys(peerConnections).forEach(username => {
+        const pc = peerConnections[username];
+        if (pc) {
+            pc.close();
+            const wrapper = document.querySelector(`#remoteVideo-${username}`);
+            if (wrapper) wrapper.parentElement.remove();
+        }
+    });
+
+    if (localStream) localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
     localVideo.srcObject = null;
     localVideoOff.classList.add('hidden');
     localUsername.textContent = '';
+    document.getElementById('call-status').textContent = 'Estado: Listo';
     callBtn.classList.remove('hidden');
     addUserBtn.classList.add('hidden');
     hangBtn.classList.add('hidden');
@@ -401,7 +367,6 @@ function resetCall() {
     peerConnections = {};
     currentCaller = null;
     currentOffer = null;
-    callId = null;
     stopRingtone();
     cameraOn = true;
     isScreenSharing = false;
@@ -422,25 +387,17 @@ function resetCall() {
     }
 }
 
-function hangUp() {
-    const currentUser = document.getElementById('current-user').textContent;
-    socket.emit('hangup', { from: currentUser, callId });
-    resetCall();
-}
-
-socket.on('offer', async ({ offer, from, participants, callId: receivedCallId }) => {
+socket.on('offer', async ({ offer, from, participants }) => {
     if (isLoggedIn && !callSection.classList.contains('hidden')) {
         currentCaller = from;
         currentOffer = offer;
-        callId = receivedCallId; // Adoptar callId de la llamada
         callerName.textContent = `${from} está llamándote.`;
         callRequestModal.classList.remove('hidden');
         ringtone.currentTime = 0;
         ringtone.play().catch(error => console.log('Error al reproducir tono:', error));
 
-        // Almacenar participantes y callId
+        // Store participants for use in acceptCall
         currentOffer.participants = participants;
-        currentOffer.callId = callId;
     }
 });
 
@@ -459,7 +416,6 @@ async function acceptCall() {
             console.log('Stream local obtenido al aceptar:', localStream);
         }
 
-        const currentUser = document.getElementById('current-user').textContent;
         const pc = await createPeerConnection(currentCaller);
         await pc.setRemoteDescription(new RTCSessionDescription(currentOffer));
         console.log(`Remote description seteada para ${currentCaller}:`, currentOffer);
@@ -468,20 +424,16 @@ async function acceptCall() {
         socket.emit('answer', { answer, to: currentCaller });
         console.log(`Answer enviado a ${currentCaller}:`, answer);
 
-        // Conectar con otros participantes
+        // Connect to other participants
+        const currentUser = document.getElementById('current-user').textContent;
         const otherParticipants = currentOffer.participants.filter(p => p !== currentUser && p !== currentCaller);
         for (const participant of otherParticipants) {
             if (!peerConnections[participant]) {
                 const newPc = await createPeerConnection(participant);
                 const newOffer = await newPc.createOffer();
                 await newPc.setLocalDescription(newOffer);
-                socket.emit('offer', { 
-                    offer: newOffer, 
-                    to: participant, 
-                    participants: [currentUser, ...Object.keys(peerConnections), participant], 
-                    callId 
-                });
-                console.log(`Offer enviado a participante existente ${participant} con callId ${callId}:`, newOffer);
+                socket.emit('offer', { offer: newOffer, to: participant, participants: [currentUser, ...Object.keys(peerConnections)] });
+                console.log(`Offer enviado a participante existente ${participant}:`, newOffer);
             }
         }
 
@@ -495,7 +447,6 @@ async function acceptCall() {
     } catch (error) {
         console.error('Error en acceptCall:', error);
         callStatus.textContent = 'Estado: Error al aceptar la llamada';
-        resetCall();
     }
 }
 
@@ -506,7 +457,6 @@ function rejectCall() {
     document.getElementById('call-status').textContent = 'Estado: Llamada rechazada';
     currentCaller = null;
     currentOffer = null;
-    callId = null;
 }
 
 socket.on('answer', async ({ answer, from }) => {
@@ -535,14 +485,23 @@ socket.on('ice-candidate', async ({ candidate, from }) => {
 });
 
 socket.on('reject', () => {
-    resetCall();
+    hangUp();
     document.getElementById('call-status').textContent = 'Estado: La llamada fue rechazada';
 });
 
-socket.on('hangup', ({ from, callId: receivedCallId }) => {
-    if (callId === receivedCallId) {
-        removeParticipant(from);
-        document.getElementById('call-status').textContent = `Estado: ${from} ha colgado`;
+socket.on('hangup', ({ from, participants }) => {
+    const pc = peerConnections[from];
+    if (pc) {
+        pc.close();
+        delete peerConnections[from];
+        const wrapper = document.querySelector(`#remoteVideo-${from}`);
+        if (wrapper) wrapper.parentElement.remove();
+    }
+
+    if (Object.keys(peerConnections).length === 0) {
+        hangUp();
+    } else {
+        updateCallStatus();
     }
 });
 
