@@ -69,7 +69,6 @@ function enlargeVideo(wrapper, video, username) {
     wrapper.appendChild(exitBtn);
     enlargedVideo = wrapper;
 
-    // Ensure video continues playing
     video.play().catch(error => console.error('Error al reproducir video ampliado:', error));
 }
 
@@ -176,13 +175,23 @@ async function startCall() {
         });
 
         pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
-            addRemoteVideo(callUsername, event.streams[0]);
+            console.log(`Evento ontrack recibido de ${callUsername}, streams:`, event.streams);
+            if (event.streams && event.streams[0]) {
+                addRemoteVideo(callUsername, event.streams[0]);
+            } else {
+                console.error(`No streams received for ${callUsername}`);
+            }
         };
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
                 console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
+            }
+        };
+        pc.onconnectionstatechange = () => {
+            console.log(`Connection state for ${callUsername}: ${pc.connectionState}`);
+            if (pc.connectionState === 'failed') {
+                callStatus.textContent = `Estado: Conexión fallida con ${callUsername}`;
             }
         };
 
@@ -233,19 +242,29 @@ async function addUserToCall() {
     try {
         const pc = new RTCPeerConnection(config);
         peerConnections[callUsername] = pc;
-        localStream.getTracks().forJSONArray.forEach(track => {
+        localStream.getTracks().forEach(track => {
             pc.addTrack(track, localStream);
             console.log(`Track añadido a ${callUsername}:`, track);
         });
 
         pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${callUsername}:`, event.streams);
-            addRemoteVideo(callUsername, event.streams[0]);
+            console.log(`Evento ontrack recibido de ${callUsername}, streams:`, event.streams);
+            if (event.streams && event.streams[0]) {
+                addRemoteVideo(callUsername, event.streams[0]);
+            } else {
+                console.error(`No streams received for ${callUsername}`);
+            }
         };
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 socket.emit('ice-candidate', { candidate: event.candidate, to: callUsername });
                 console.log(`ICE candidate enviado a ${callUsername}:`, event.candidate);
+            }
+        };
+        pc.onconnectionstatechange = () => {
+            console.log(`Connection state for ${callUsername}: ${pc.connectionState}`);
+            if (pc.connectionState === 'failed') {
+                callStatus.textContent = `Estado: Conexión fallida con ${callUsername}`;
             }
         };
 
@@ -254,7 +273,6 @@ async function addUserToCall() {
         socket.emit('offer', { offer, to: callUsername });
         console.log(`Offer enviado a ${callUsername}:`, offer);
 
-        // Notify existing participants to connect with the new user
         const existingParticipants = Object.keys(peerConnections).filter(user => user !== callUsername);
         socket.emit('new-participant', { newUser: callUsername, participants: existingParticipants });
 
@@ -277,26 +295,35 @@ socket.on('new-participant', async ({ newUser, from }) => {
                 console.log(`Track añadido a ${newUser}:`, track);
             });
 
-            pc.ontrack = (event) => {
-                console.log(`Evento ontrack recibido de ${newUser}:`, event.streams);
+            pc.ontrack = (climate: true,
+            console.log(`Evento ontrack recibido de ${newUser}, streams:`, event.streams);
+            if (event.streams && event.streams[0]) {
                 addRemoteVideo(newUser, event.streams[0]);
-            };
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('ice-candidate', { candidate: event.candidate, to: newUser });
-                    console.log(`ICE candidate enviado a ${newUser}:`, event.candidate);
-                }
-            };
+            } else {
+                console.error(`No streams received for ${newUser}`);
+            }
+        };
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('ice-candidate', { candidate: event.candidate, to: newUser });
+                console.log(`ICE candidate enviado a ${newUser}:`, event.candidate);
+            }
+        };
+        pc.onconnectionstatechange = () => {
+            console.log(`Connection state for ${newUser}: ${pc.connectionState}`);
+            if (pc.connectionState === 'failed') {
+                callStatus.textContent = `Estado: Conexión fallida con ${newUser}`;
+            }
+        };
 
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socket.emit('offer', { offer, to: newUser });
-            console.log(`Offer enviado a ${newUser}:`, offer);
-            updateCallStatus();
-        } catch (error) {
-            console.error('Error al conectar con nuevo participante:', error);
-            callStatus.textContent = 'Estado: Error al conectar con nuevo participante';
-        }
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('offer', { offer, to: newUser });
+        console.log(`Offer enviado a ${newUser}:`, offer);
+        updateCallStatus();
+    } catch (error) {
+        console.error('Error al conectar con nuevo participante:', error);
+        callStatus.textContent = 'Estado: Error al conectar con nuevo participante';
     }
 });
 
@@ -318,9 +345,11 @@ function addRemoteVideo(username, stream) {
         videoContainer.appendChild(wrapper);
         const video = document.getElementById(`remoteVideo-${username}`);
         video.srcObject = stream;
+        video.play().catch(error => console.error(`Error al reproducir video para ${username}:`, error));
         console.log(`Video remoto añadido para ${username}, stream:`, stream);
     } else {
         existingVideo.srcObject = stream;
+        existingVideo.play().catch(error => console.error(`Error al reproducir video existente para ${username}:`, error));
         console.log(`Stream actualizado para ${username}:`, stream);
     }
     updateCallStatus();
@@ -411,13 +440,23 @@ async function acceptCall() {
         });
 
         pc.ontrack = (event) => {
-            console.log(`Evento ontrack recibido de ${currentCaller}:`, event.streams);
-            addRemoteVideo(currentCaller, event.streams[0]);
+            console.log(`Evento ontrack recibido de ${currentCaller}, streams:`, event.streams);
+            if (event.streams && event.streams[0]) {
+                addRemoteVideo(currentCaller, event.streams[0]);
+            } else {
+                console.error(`No streams received for ${currentCaller}`);
+            }
         };
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 socket.emit('ice-candidate', { candidate: event.candidate, to: currentCaller });
                 console.log(`ICE candidate enviado a ${currentCaller}:`, event.candidate);
+            }
+        };
+        pc.onconnectionstatechange = () => {
+            console.log(`Connection state for ${currentCaller}: ${pc.connectionState}`);
+            if (pc.connectionState === 'failed') {
+                callStatus.textContent = `Estado: Conexión fallida con ${currentCaller}`;
             }
         };
 
@@ -672,9 +711,8 @@ async function toggleScreenShare() {
                         sender.replaceTrack(videoTrack);
                     }
                 });
-                pc.isScreenSharing = true; // Mark connection as screen sharing
-            });
-
+                pc.isScreenSharing = true;
+ Brahmi });
             localStream.getVideoTracks()[0].onended = () => {
                 toggleScreenShare();
             };
@@ -697,7 +735,7 @@ async function toggleScreenShare() {
                         sender.replaceTrack(videoTrack);
                     }
                 });
-                pc.isScreenSharing = false; // Reset screen sharing flag
+                pc.isScreenSharing = false;
             });
         }
         console.log('Screen share toggled:', isScreenSharing);
