@@ -90,16 +90,24 @@ async function register() {
     }
 
     regStatus.textContent = 'Registrando...';
-    const res = await fetch(`${SERVER_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    regStatus.textContent = data.message || data.error;
-    if (res.ok) {
-        regStatus.classList.add('success');
-        setTimeout(() => showLogin(), 1000);
+    try {
+        const res = await fetch(`${SERVER_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        console.log('Respuesta de registro:', data);
+        regStatus.textContent = data.message || data.error || 'Error desconocido';
+        if (res.ok) {
+            regStatus.classList.add('success');
+            setTimeout(() => showLogin(), 1000);
+        } else {
+            console.error('Error en registro, estado:', res.status);
+        }
+    } catch (error) {
+        console.error('Error en register:', error);
+        regStatus.textContent = 'Error de conexión con el servidor. Verifica tu red o intenta de nuevo.';
     }
 }
 
@@ -114,31 +122,44 @@ async function login() {
     }
 
     loginStatus.textContent = 'Iniciando sesión...';
-    const res = await fetch(`${SERVER_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    loginStatus.textContent = data.message || data.error;
-    if (res.ok) {
-        loginStatus.classList.add('success');
-        document.getElementById('current-user').textContent = username;
-        isLoggedIn = true;
-        localStorage.setItem('username', username);
-        socket.emit('join', username);
-        setTimeout(async () => {
-            showCallSection();
-            await loadRingtone();
-            await populateCameraOptions();
-        }, 1000);
+    try {
+        const res = await fetch(`${SERVER_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        console.log('Respuesta de login:', data);
+        loginStatus.textContent = data.message || data.error || 'Error desconocido';
+        if (res.ok) {
+            loginStatus.classList.add('success');
+            document.getElementById('current-user').textContent = username;
+            isLoggedIn = true;
+            localStorage.setItem('username', username);
+            socket.emit('join', username);
+            setTimeout(async () => {
+                showCallSection();
+                await loadRingtone();
+                await populateCameraOptions();
+            }, 1000);
+        } else {
+            console.error('Error en login, estado:', res.status);
+        }
+    } catch (error) {
+        console.error('Error en login:', error);
+        loginStatus.textContent = 'Error de conexión con el servidor. Verifica tu red o intenta de nuevo.';
     }
 }
 
 async function checkUserExists(username) {
-    const res = await fetch(`${SERVER_URL}/check-user?username=${username}`);
-    const data = await res.json();
-    return data.exists;
+    try {
+        const res = await fetch(`${SERVER_URL}/check-user?username=${username}`);
+        const data = await res.json();
+        return data.exists;
+    } catch (error) {
+        console.error('Error en checkUserExists:', error);
+        return false;
+    }
 }
 
 async function startCall() {
@@ -295,35 +316,36 @@ socket.on('new-participant', async ({ newUser, from }) => {
                 console.log(`Track añadido a ${newUser}:`, track);
             });
 
-            pc.ontrack = (climate: true,
-            console.log(`Evento ontrack recibido de ${newUser}, streams:`, event.streams);
-            if (event.streams && event.streams[0]) {
-                addRemoteVideo(newUser, event.streams[0]);
-            } else {
-                console.error(`No streams received for ${newUser}`);
-            }
-        };
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit('ice-candidate', { candidate: event.candidate, to: newUser });
-                console.log(`ICE candidate enviado a ${newUser}:`, event.candidate);
-            }
-        };
-        pc.onconnectionstatechange = () => {
-            console.log(`Connection state for ${newUser}: ${pc.connectionState}`);
-            if (pc.connectionState === 'failed') {
-                callStatus.textContent = `Estado: Conexión fallida con ${newUser}`;
-            }
-        };
+            pc.ontrack = (event) => {
+                console.log(`Evento ontrack recibido de ${newUser}, streams:`, event.streams);
+                if (event.streams && event.streams[0]) {
+                    addRemoteVideo(newUser, event.streams[0]);
+                } else {
+                    console.error(`No streams received for ${newUser}`);
+                }
+            };
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('ice-candidate', { candidate: event.candidate, to: newUser });
+                    console.log(`ICE candidate enviado a ${newUser}:`, event.candidate);
+                }
+            };
+            pc.onconnectionstatechange = () => {
+                console.log(`Connection state for ${newUser}: ${pc.connectionState}`);
+                if (pc.connectionState === 'failed') {
+                    callStatus.textContent = `Estado: Conexión fallida con ${newUser}`;
+                }
+            };
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit('offer', { offer, to: newUser });
-        console.log(`Offer enviado a ${newUser}:`, offer);
-        updateCallStatus();
-    } catch (error) {
-        console.error('Error al conectar con nuevo participante:', error);
-        callStatus.textContent = 'Estado: Error al conectar con nuevo participante';
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket.emit('offer', { offer, to: newUser });
+            console.log(`Offer enviado a ${newUser}:`, offer);
+            updateCallStatus();
+        } catch (error) {
+            console.error('Error al conectar con nuevo participante:', error);
+            callStatus.textContent = 'Estado: Error al conectar con nuevo participante';
+        }
     }
 });
 
@@ -597,16 +619,21 @@ async function saveRingtone() {
     formData.append('ringtone', file);
     formData.append('username', document.getElementById('current-user').textContent);
 
-    const res = await fetch(`${SERVER_URL}/upload-ringtone`, {
-        method: 'POST',
-        body: formData
-    });
-    const data = await res.json();
-    if (res.ok) {
-        await loadRingtone();
-        alert('Tono de llamada guardado con éxito.');
-    } else {
-        alert('Error al guardar el tono: ' + data.error);
+    try {
+        const res = await fetch(`${SERVER_URL}/upload-ringtone`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+            await loadRingtone();
+            alert('Tono de llamada guardado con éxito.');
+        } else {
+            alert('Error al guardar el tono: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error en saveRingtone:', error);
+        alert('Error de conexión con el servidor al guardar el tono.');
     }
 }
 
@@ -712,7 +739,8 @@ async function toggleScreenShare() {
                     }
                 });
                 pc.isScreenSharing = true;
- Brahmi });
+            });
+
             localStream.getVideoTracks()[0].onended = () => {
                 toggleScreenShare();
             };
