@@ -546,7 +546,7 @@ socket.on('hangup', ({ from }) => {
     if (pc) {
         pc.close();
         delete peerConnections[from];
-        const wrapper = document.querySelector(`#remoteVideo-${username}`);
+        const wrapper = document.querySelector(`#remoteVideo-${from}`);
         if (wrapper) wrapper.parentElement.remove();
         if (Object.keys(peerConnections).length === 0) {
             hangUp();
